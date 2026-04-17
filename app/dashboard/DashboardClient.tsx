@@ -13,6 +13,12 @@ interface CheckinData {
   execution: string;
   portfolio_exits: string;
   portfolio_other: string;
+  working_days: number;
+  sourcing_days: number;
+  converting_days: number;
+  execution_days: number;
+  portfolio_exits_days: number;
+  portfolio_other_days: number;
   submitted_at: string;
 }
 
@@ -30,55 +36,41 @@ interface DashboardData {
   totalCount: number;
 }
 
-// ─── Label maps ───────────────────────────────────────────────────────────────
-
-const MOOD_LABELS: Record<number, string> = {
-  1: 'Not able to work',
-  2: 'Not good',
-  3: 'Fine',
-  4: 'Good',
-  5: 'Great',
-};
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const CAPACITY_LABELS: Record<number, string> = {
   1: 'Vacation',
-  2: 'Has significant capacity',
-  3: 'Has some capacity',
-  4: 'Fully staffed with a live deal',
-  5: 'Crunch period: execution phase',
+  2: 'Significant capacity',
+  3: 'Some capacity',
+  4: 'Fully staffed',
+  5: 'Crunch',
 };
 
-const DEAL_SECTIONS = [
-  { key: 'sourcing',        label: 'Sourcing',   sub: 'IC0 "one-pager"' },
-  { key: 'converting',      label: 'Converting', sub: 'IC1 "BC"'        },
-  { key: 'execution',       label: 'Execution',  sub: 'IC2-3 "EP/IM"'   },
-  { key: 'portfolio_exits', label: 'Portfolio',  sub: 'Exits'           },
-  { key: 'portfolio_other', label: 'Portfolio',  sub: 'Other'           },
+const COLUMNS = [
+  { key: 'sourcing',        label: 'Sourcing',   sub: 'IC0',        dayKey: 'sourcing_days'        },
+  { key: 'converting',      label: 'Converting', sub: 'IC1',        dayKey: 'converting_days'      },
+  { key: 'execution',       label: 'Execution',  sub: 'IC2–3',      dayKey: 'execution_days'       },
+  { key: 'portfolio_exits', label: 'Portfolio',  sub: 'Exits',      dayKey: 'portfolio_exits_days' },
+  { key: 'portfolio_other', label: 'Portfolio',  sub: 'Other',      dayKey: 'portfolio_other_days' },
 ] as const;
 
-// ─── Badge helpers ────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function moodBadgeClass(score: number): string {
-  if (score <= 2) return 'bg-red-100 text-red-700 border-red-200';
-  if (score === 3) return 'bg-amber-100 text-amber-700 border-amber-200';
-  return 'bg-green-100 text-green-700 border-green-200';
+function moodDot(score: number): string {
+  if (score <= 2) return 'bg-red-400';
+  if (score === 3) return 'bg-amber-400';
+  return 'bg-green-400';
 }
 
-function capacityBadgeClass(score: number): string {
-  if (score === 1) return 'bg-gray-100 text-gray-500 border-gray-200';
-  if (score <= 3) return 'bg-green-100 text-green-700 border-green-200';
-  if (score === 4) return 'bg-amber-100 text-amber-700 border-amber-200';
-  return 'bg-red-100 text-red-700 border-red-200';
+function capacityClass(score: number): string {
+  if (score === 1) return 'text-gray-400 bg-gray-50 border-gray-200';
+  if (score <= 3)  return 'text-green-700 bg-green-50 border-green-200';
+  if (score === 4) return 'text-amber-700 bg-amber-50 border-amber-200';
+  return 'text-red-700 bg-red-50 border-red-200';
 }
 
-function formatSubmittedAt(isoString: string): string {
-  const d = new Date(isoString);
-  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const h = d.getHours();
-  const m = d.getMinutes().toString().padStart(2, '0');
-  const ampm = h >= 12 ? 'pm' : 'am';
-  const h12 = h % 12 || 12;
-  return `Submitted ${days[d.getDay()]} ${h12}:${m}${ampm}`;
+function formatDays(v: number): string {
+  return v % 1 === 0 ? String(v) : String(v);
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -101,25 +93,21 @@ export default function DashboardClient() {
       setData(json);
       setLastRefresh(new Date());
     } catch {
-      // silently ignore refresh errors — keeps showing stale data
+      // silently ignore — keeps showing stale data
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial fetch + re-fetch when week changes
   useEffect(() => {
     setLoading(true);
     fetchData(currentWeek);
   }, [currentWeek, fetchData]);
 
-  // 60-second auto-refresh
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => fetchData(currentWeek), 60_000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [currentWeek, fetchData]);
 
   const prevWeek = getPrevWeek(currentWeek.week, currentWeek.year);
@@ -130,12 +118,12 @@ export default function DashboardClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+
       {/* ── Top bar ── */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+        <div className="max-w-full mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
 
-            {/* Week nav */}
             <div className="flex items-center gap-2 min-w-0">
               <button
                 onClick={() => setCurrentWeek(prevWeek)}
@@ -146,11 +134,7 @@ export default function DashboardClient() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
-
-              <div className="min-w-0">
-                <h1 className="text-sm font-semibold text-gray-900 truncate">{currentLabel}</h1>
-              </div>
-
+              <h1 className="text-sm font-semibold text-gray-900 truncate">{currentLabel}</h1>
               <button
                 onClick={() => setCurrentWeek(nextWeek)}
                 className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
@@ -160,7 +144,6 @@ export default function DashboardClient() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
-
               {!isCurrentWeek && (
                 <button
                   onClick={() => setCurrentWeek(getISOWeek(new Date()))}
@@ -171,7 +154,6 @@ export default function DashboardClient() {
               )}
             </div>
 
-            {/* Status */}
             <div className="flex items-center gap-3 shrink-0">
               {data && (
                 <span className="text-sm text-gray-500">
@@ -180,9 +162,7 @@ export default function DashboardClient() {
                 </span>
               )}
               {lastRefresh && (
-                <span className="hidden sm:inline text-xs text-gray-300">
-                  Refreshes every 60s
-                </span>
+                <span className="hidden sm:inline text-xs text-gray-300">Refreshes every 60s</span>
               )}
               <button
                 onClick={() => fetchData(currentWeek)}
@@ -199,110 +179,110 @@ export default function DashboardClient() {
         </div>
       </div>
 
-      {/* ── Cards grid ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      {/* ── Table ── */}
+      <div className="px-4 sm:px-6 py-6 overflow-x-auto">
         {loading && !data ? (
           <div className="flex items-center justify-center py-24">
             <p className="text-sm text-gray-400">Loading…</p>
           </div>
         ) : data ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {data.team.map((member) => (
-              <MemberCard key={member.token} member={member} />
-            ))}
-          </div>
+          <table className="w-full border-collapse bg-white rounded-xl overflow-hidden border border-gray-200 shadow-sm text-sm">
+            <thead>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider w-40 min-w-[140px]">
+                  Name
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider w-36 min-w-[130px]">
+                  Capacity
+                </th>
+                {COLUMNS.map((col) => (
+                  <th key={col.key} className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider min-w-[160px]">
+                    {col.label}
+                    <span className="font-normal text-gray-400 normal-case tracking-normal ml-1">— {col.sub}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {data.team.map((member) => (
+                <TeamRow key={member.token} member={member} />
+              ))}
+            </tbody>
+          </table>
         ) : null}
       </div>
     </div>
   );
 }
 
-// ─── Member card ──────────────────────────────────────────────────────────────
+// ─── Table row ────────────────────────────────────────────────────────────────
 
-function MemberCard({ member }: { member: MemberRow }) {
+function TeamRow({ member }: { member: MemberRow }) {
   const { checkin } = member;
+  const firstName = member.name.split(' ')[0];
 
   return (
-    <div className={`bg-white rounded-xl border flex flex-col ${checkin ? 'border-gray-200' : 'border-gray-100 opacity-60'}`}>
+    <tr className={`align-top ${!checkin ? 'opacity-50' : ''}`}>
 
-      {/* Card header */}
-      <div className="px-5 pt-4 pb-3 border-b border-gray-100">
-        <div className="flex items-start justify-between gap-2 mb-2.5">
-          <h2 className="text-sm font-semibold text-gray-900 leading-tight">{member.name}</h2>
+      {/* Name + mood */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2">
+          {checkin && (
+            <span className={`w-2 h-2 rounded-full shrink-0 ${moodDot(checkin.mood)}`} title={`Mood: ${checkin.mood}`} />
+          )}
+          <span className="font-medium text-gray-900">{firstName}</span>
         </div>
-
         {checkin ? (
-          <div className="flex flex-wrap gap-2">
-            <Badge
-              label={`${checkin.mood} — ${MOOD_LABELS[checkin.mood]}`}
-              className={moodBadgeClass(checkin.mood)}
-              prefix="Mood"
-            />
-            <Badge
-              label={`${checkin.capacity} — ${CAPACITY_LABELS[checkin.capacity]}`}
-              className={capacityBadgeClass(checkin.capacity)}
-              prefix="Capacity"
-            />
-          </div>
+          <p className="text-xs text-gray-400 mt-0.5 ml-4">
+            {checkin.working_days}d this week
+          </p>
         ) : (
-          <span className="inline-flex items-center text-xs font-medium text-gray-400 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-0.5">
-            Not yet submitted
+          <p className="text-xs text-gray-400 mt-0.5">Not submitted</p>
+        )}
+      </td>
+
+      {/* Capacity */}
+      <td className="px-4 py-3">
+        {checkin ? (
+          <span className={`inline-flex items-center text-xs font-medium border rounded-full px-2.5 py-0.5 ${capacityClass(checkin.capacity)}`}>
+            {CAPACITY_LABELS[checkin.capacity]}
           </span>
-        )}
-      </div>
-
-      {/* Deal sections */}
-      <div className="flex-1 divide-y divide-gray-50">
-        {DEAL_SECTIONS.map(({ key, label, sub }) => {
-          const text = checkin ? checkin[key as keyof CheckinData] as string : '';
-          const isEmpty = !text?.trim();
-
-          return (
-            <div key={key} className="px-5 py-3">
-              <p className="text-xs font-medium text-gray-400 mb-1">
-                {label}
-                <span className="font-normal"> — {sub}</span>
-              </p>
-              {isEmpty ? (
-                <p className="text-sm text-gray-300">—</p>
-              ) : (
-                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{text}</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Footer */}
-      <div className="px-5 py-3 border-t border-gray-100">
-        {checkin ? (
-          <p className="text-xs text-gray-400">{formatSubmittedAt(checkin.submitted_at)}</p>
         ) : (
-          <p className="text-xs text-gray-300">Not yet submitted</p>
+          <span className="text-gray-300">—</span>
         )}
-      </div>
+      </td>
 
-    </div>
-  );
-}
+      {/* Bucket columns */}
+      {COLUMNS.map((col) => {
+        const text = checkin ? (checkin[col.key as keyof CheckinData] as string) : '';
+        const days = checkin ? (checkin[col.dayKey as keyof CheckinData] as number) : 0;
+        const workingDays = checkin?.working_days ?? 0;
+        const hasText = !!text?.trim();
+        const hasDays = checkin && workingDays > 0;
 
-// ─── Badge ────────────────────────────────────────────────────────────────────
+        return (
+          <td key={col.key} className="px-4 py-3">
+            {checkin ? (
+              <div className="space-y-1">
+                {hasDays && (
+                  <p className="text-xs font-medium text-gray-500">
+                    {formatDays(days)}
+                    <span className="text-gray-300 font-normal"> / {workingDays}d</span>
+                  </p>
+                )}
+                {hasText ? (
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{text}</p>
+                ) : (
+                  <p className="text-sm text-gray-300">—</p>
+                )}
+              </div>
+            ) : (
+              <span className="text-gray-300">—</span>
+            )}
+          </td>
+        );
+      })}
 
-function Badge({
-  label,
-  className,
-  prefix,
-}: {
-  label: string;
-  className: string;
-  prefix: string;
-}) {
-  return (
-    <span
-      title={prefix}
-      className={`inline-flex items-center text-xs font-medium border rounded-full px-2.5 py-0.5 ${className}`}
-    >
-      {label}
-    </span>
+    </tr>
   );
 }
