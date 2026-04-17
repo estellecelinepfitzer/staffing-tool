@@ -22,6 +22,13 @@ export function getDb(): Database.Database {
   return _db;
 }
 
+function addColumnIfMissing(db: Database.Database, table: string, column: string, definition: string) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.find((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
 function initSchema(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS checkins (
@@ -41,6 +48,14 @@ function initSchema(db: Database.Database) {
       UNIQUE(member_token, iso_week, iso_year)
     )
   `);
+
+  // Migrations — add new columns to existing tables
+  addColumnIfMissing(db, 'checkins', 'working_days',        'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'sourcing_days',       'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'converting_days',     'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'execution_days',      'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'portfolio_exits_days','REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'portfolio_other_days','REAL NOT NULL DEFAULT 0');
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -59,6 +74,12 @@ export interface Checkin {
   execution: string;
   portfolio_exits: string;
   portfolio_other: string;
+  working_days: number;
+  sourcing_days: number;
+  converting_days: number;
+  execution_days: number;
+  portfolio_exits_days: number;
+  portfolio_other_days: number;
 }
 
 // ─── Queries ─────────────────────────────────────────────────────────────────
@@ -78,18 +99,25 @@ export function upsertCheckin(data: Omit<Checkin, 'id'>): void {
     .prepare(`
       INSERT INTO checkins
         (member_token, member_name, iso_week, iso_year, submitted_at,
-         mood, capacity, sourcing, converting, execution, portfolio_exits, portfolio_other)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         mood, capacity, sourcing, converting, execution, portfolio_exits, portfolio_other,
+         working_days, sourcing_days, converting_days, execution_days, portfolio_exits_days, portfolio_other_days)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(member_token, iso_week, iso_year) DO UPDATE SET
-        member_name     = excluded.member_name,
-        submitted_at    = excluded.submitted_at,
-        mood            = excluded.mood,
-        capacity        = excluded.capacity,
-        sourcing        = excluded.sourcing,
-        converting      = excluded.converting,
-        execution       = excluded.execution,
-        portfolio_exits = excluded.portfolio_exits,
-        portfolio_other = excluded.portfolio_other
+        member_name           = excluded.member_name,
+        submitted_at          = excluded.submitted_at,
+        mood                  = excluded.mood,
+        capacity              = excluded.capacity,
+        sourcing              = excluded.sourcing,
+        converting            = excluded.converting,
+        execution             = excluded.execution,
+        portfolio_exits       = excluded.portfolio_exits,
+        portfolio_other       = excluded.portfolio_other,
+        working_days          = excluded.working_days,
+        sourcing_days         = excluded.sourcing_days,
+        converting_days       = excluded.converting_days,
+        execution_days        = excluded.execution_days,
+        portfolio_exits_days  = excluded.portfolio_exits_days,
+        portfolio_other_days  = excluded.portfolio_other_days
     `)
     .run(
       data.member_token,
@@ -104,6 +132,12 @@ export function upsertCheckin(data: Omit<Checkin, 'id'>): void {
       data.execution,
       data.portfolio_exits,
       data.portfolio_other,
+      data.working_days,
+      data.sourcing_days,
+      data.converting_days,
+      data.execution_days,
+      data.portfolio_exits_days,
+      data.portfolio_other_days,
     );
 }
 
