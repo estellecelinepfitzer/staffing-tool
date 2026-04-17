@@ -3,6 +3,19 @@
 import { useState } from 'react';
 import type { TeamMember } from '@/config/team';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Generate [0, 0.5, 1, …, max] options */
+function dayOptions(max: number): number[] {
+  const opts: number[] = [];
+  for (let v = 0; v <= max; v += 0.5) opts.push(v);
+  return opts;
+}
+
+function formatDays(v: number): string {
+  return v === 0 ? '0' : v % 1 === 0 ? String(v) : String(v);
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MOOD_OPTIONS: { value: number; label: string }[] = [
@@ -30,6 +43,7 @@ const DEAL_FIELDS = [
 ] as const;
 
 type DealKey = (typeof DEAL_FIELDS)[number]['key'];
+type DayKey = `${DealKey}_days`;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +55,12 @@ interface ExistingCheckin {
   execution: string;
   portfolio_exits: string;
   portfolio_other: string;
+  working_days: number;
+  sourcing_days: number;
+  converting_days: number;
+  execution_days: number;
+  portfolio_exits_days: number;
+  portfolio_other_days: number;
 }
 
 interface Props {
@@ -67,12 +87,36 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
     portfolio_exits: existing?.portfolio_exits ?? '',
     portfolio_other: existing?.portfolio_other ?? '',
   });
+  const [workingDays, setWorkingDays] = useState<number>(existing?.working_days ?? 0);
+  const [dayFields, setDayFields] = useState<Record<DayKey, number>>({
+    sourcing_days:        existing?.sourcing_days        ?? 0,
+    converting_days:      existing?.converting_days      ?? 0,
+    execution_days:       existing?.execution_days       ?? 0,
+    portfolio_exits_days: existing?.portfolio_exits_days ?? 0,
+    portfolio_other_days: existing?.portfolio_other_days ?? 0,
+  });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function setDealField(key: DealKey, value: string) {
     setDealFields((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function setDayField(key: DayKey, value: number) {
+    setDayFields((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function handleWorkingDaysChange(days: number) {
+    setWorkingDays(days);
+    // Clamp any bucket allocations that now exceed the new working days
+    setDayFields((prev) => {
+      const next = { ...prev };
+      (Object.keys(next) as DayKey[]).forEach((k) => {
+        if (next[k] > days) next[k] = days;
+      });
+      return next;
+    });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -93,6 +137,8 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
           mood,
           capacity,
           ...dealFields,
+          working_days: workingDays,
+          ...dayFields,
         }),
       });
 
@@ -174,28 +220,67 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
             />
           </Section>
 
+          {/* Working days */}
+          <Section title="Working days this week">
+            <div className="flex items-center gap-3">
+              <select
+                value={workingDays}
+                onChange={(e) => handleWorkingDaysChange(Number(e.target.value))}
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+              >
+                {[0, 1, 2, 3, 4, 5].map((d) => (
+                  <option key={d} value={d}>{d} {d === 1 ? 'day' : 'days'}</option>
+                ))}
+              </select>
+              <span className="text-xs text-gray-400">0 = holiday / fully out</span>
+            </div>
+          </Section>
+
           {/* Deal stages */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 pt-4 pb-2 border-b border-gray-100">
               <h2 className="text-sm font-medium text-gray-700">Deal Pipeline</h2>
-              <p className="text-xs text-gray-400 mt-0.5">All fields optional</p>
+              <p className="text-xs text-gray-400 mt-0.5">Notes optional — days default to 0</p>
             </div>
             <div className="divide-y divide-gray-100">
-              {DEAL_FIELDS.map(({ key, label, sub }) => (
-                <div key={key} className="px-5 py-4">
-                  <label className="block text-sm text-gray-700 mb-1.5">
-                    <span className="font-medium">{label}</span>
-                    <span className="text-gray-400"> — {sub}</span>
-                  </label>
-                  <textarea
-                    value={dealFields[key]}
-                    onChange={(e) => setDealField(key, e.target.value)}
-                    rows={3}
-                    placeholder="—"
-                    className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent focus:bg-white resize-y transition-colors"
-                  />
-                </div>
-              ))}
+              {DEAL_FIELDS.map(({ key, label, sub }) => {
+                const dayKey: DayKey = `${key}_days`;
+                const opts = dayOptions(workingDays);
+                return (
+                  <div key={key} className="px-5 py-4">
+                    <div className="flex items-start justify-between gap-4 mb-1.5">
+                      <label className="text-sm text-gray-700">
+                        <span className="font-medium">{label}</span>
+                        <span className="text-gray-400"> — {sub}</span>
+                      </label>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <select
+                          value={dayFields[dayKey]}
+                          onChange={(e) => setDayField(dayKey, Number(e.target.value))}
+                          disabled={workingDays === 0}
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {opts.map((v) => (
+                            <option key={v} value={v}>{formatDays(v)}d</option>
+                          ))}
+                        </select>
+                        {workingDays > 0 && (
+                          <span className="text-xs text-gray-400 w-12 text-right">
+                            / {workingDays}d
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <textarea
+                      value={dealFields[key]}
+                      onChange={(e) => setDealField(key, e.target.value)}
+                      rows={3}
+                      placeholder="—"
+                      className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent focus:bg-white resize-y transition-colors"
+                    />
+                  </div>
+                );
+              })}
             </div>
           </div>
 

@@ -61,19 +61,30 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const { week, year } = getISOWeek(now);
 
+  const toNum = (v: unknown, fallback = 0) => {
+    const n = Number(v);
+    return isFinite(n) ? n : fallback;
+  };
+
   upsertCheckin({
-    member_token:    token,
-    member_name:     member.name,
-    iso_week:        week,
-    iso_year:        year,
-    submitted_at:    now.toISOString(),
+    member_token:         token,
+    member_name:          member.name,
+    iso_week:             week,
+    iso_year:             year,
+    submitted_at:         now.toISOString(),
     mood,
     capacity,
-    sourcing:        typeof body.sourcing        === 'string' ? body.sourcing        : '',
-    converting:      typeof body.converting      === 'string' ? body.converting      : '',
-    execution:       typeof body.execution       === 'string' ? body.execution       : '',
-    portfolio_exits: typeof body.portfolio_exits === 'string' ? body.portfolio_exits : '',
-    portfolio_other: typeof body.portfolio_other === 'string' ? body.portfolio_other : '',
+    sourcing:             typeof body.sourcing        === 'string' ? body.sourcing        : '',
+    converting:           typeof body.converting      === 'string' ? body.converting      : '',
+    execution:            typeof body.execution       === 'string' ? body.execution       : '',
+    portfolio_exits:      typeof body.portfolio_exits === 'string' ? body.portfolio_exits : '',
+    portfolio_other:      typeof body.portfolio_other === 'string' ? body.portfolio_other : '',
+    working_days:         toNum(body.working_days),
+    sourcing_days:        toNum(body.sourcing_days),
+    converting_days:      toNum(body.converting_days),
+    execution_days:       toNum(body.execution_days),
+    portfolio_exits_days: toNum(body.portfolio_exits_days),
+    portfolio_other_days: toNum(body.portfolio_other_days),
   });
 
   return NextResponse.json({ ok: true });
