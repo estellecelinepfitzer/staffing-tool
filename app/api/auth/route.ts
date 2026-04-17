@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMemberByToken } from '@/config/team';
-import { signToken, COOKIE_NAME, MAX_AGE_SECONDS } from '@/lib/auth';
+import { signToken, COOKIE_NAME } from '@/lib/auth';
 
 // POST /api/auth — validate password, set session cookie
 export async function POST(req: NextRequest) {
@@ -30,11 +30,11 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true });
+  // Session cookie — no maxAge means it expires when the browser is closed
   res.cookies.set(COOKIE_NAME, signToken(token), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: MAX_AGE_SECONDS,
     path: '/',
   });
   return res;

@@ -4,10 +4,8 @@ import { createHmac, timingSafeEqual } from 'crypto';
 const SECRET =
   process.env.COOKIE_SECRET ?? 'staffing-tool-internal-secret-change-in-prod';
 
-const COOKIE_NAME = 'checkin_session';
-const MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 days
-
-export { COOKIE_NAME, MAX_AGE_SECONDS };
+export const COOKIE_NAME = 'checkin_session';
+export const DASHBOARD_COOKIE_NAME = 'dashboard_session';
 
 /** Returns a signed value: "<token>.<hmac>" */
 export function signToken(token: string): string {

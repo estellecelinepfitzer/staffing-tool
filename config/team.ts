@@ -26,3 +26,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
 export function getMemberByToken(token: string): TeamMember | undefined {
   return TEAM_MEMBERS.find((m) => m.token === token);
 }
+
+// Password to view the dashboard — change this to whatever you like
+export const ADMIN_PASSWORD = 'monday2026';
