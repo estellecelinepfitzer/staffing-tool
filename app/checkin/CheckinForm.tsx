@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { TeamMember } from '@/config/team';
+interface TeamMember { name: string; token: string; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

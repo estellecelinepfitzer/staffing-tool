@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMemberByToken } from '@/config/team';
+import { getMemberByToken } from '@/lib/db';
 import { signToken, hashPassword, COOKIE_NAME } from '@/lib/auth';
 import { getPasswordHash } from '@/lib/db';
 

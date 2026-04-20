@@ -1,34 +1,28 @@
-// ─── Team configuration ────────────────────────────────────────────────────
-// Edit this file to add or remove team members.
-// Each member needs a unique `token` — this becomes their private check-in URL:
-//   /checkin?token=<token>
+// ─── Team seed data ────────────────────────────────────────────────────────
+// This file seeds the database on first run.
+// After that, manage users from the Admin page (/admin).
 //
-// Passwords are stored securely in Railway environment variables, NOT here.
-// Set one env var per person in Railway → Variables:
-//   PASSWORD_ESTELLE_PFZ=somepassword
-//   PASSWORD_KATRIN_VAT=somepassword
-//   ... (token uppercased, hyphens → underscores, prefixed with PASSWORD_)
-// Dashboard password: DASHBOARD_PASSWORD=somepassword
+// Passwords: set as Railway env vars — PASSWORD_<TOKEN_UPPER_SNAKE>=value
+// Dashboard password: DASHBOARD_PASSWORD
+// Admin password:     ADMIN_PASSWORD
 // ───────────────────────────────────────────────────────────────────────────
 
-export interface TeamMember {
+export interface TeamMemberSeed {
   name: string;
   token: string;
+  email: string;
 }
 
-export const TEAM_MEMBERS: TeamMember[] = [
-  { name: 'Estelle Pfitzer',    token: 'estelle-pfz'   },
-  { name: 'Katrin Vatiska',     token: 'katrin-vat'    },
-  { name: 'Magdalena Plotczyk', token: 'magdalena-plt' },
-  { name: 'Marton Kenessey',    token: 'marton-ken'    },
-  { name: 'Teresa Pla Prats',   token: 'teresa-plp'    },
-  { name: 'Tim Schneider',      token: 'tim-sch'       },
-  { name: 'Jean Wallerand',     token: 'jean-wal'      },
+export const TEAM_MEMBERS_SEED: TeamMemberSeed[] = [
+  { name: 'Estelle Pfitzer',    token: 'estelle-pfz',   email: 'estellepfitzer@mtip.ch'   },
+  { name: 'Katrin Vatiska',     token: 'katrin-vat',    email: 'katrin.vatiska@mtip.ch'   },
+  { name: 'Magdalena Plotczyk', token: 'magdalena-plt', email: 'magdalena.plotczyk@mtip.ch' },
+  { name: 'Marton Kenessey',    token: 'marton-ken',    email: 'marton.kenessey@mtip.ch'  },
+  { name: 'Teresa Pla Prats',   token: 'teresa-plp',    email: 'teresa.plaprats@mtip.ch'  },
+  { name: 'Tim Schneider',      token: 'tim-sch',       email: 'tim.schneider@mtip.ch'    },
+  { name: 'Jean Wallerand',     token: 'jean-wal',      email: 'jean.wallerand@mtip.ch'   },
 ];
 
-export function getMemberByToken(token: string): TeamMember | undefined {
-  return TEAM_MEMBERS.find((m) => m.token === token);
-}
 
 // Password to view the dashboard — change this to whatever you like
 export const ADMIN_PASSWORD = 'monday2026';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getMemberByToken } from '@/config/team';
+import { getMemberByToken } from '@/lib/db';
 import { verifySignedToken, hashPassword, COOKIE_NAME } from '@/lib/auth';
 import { getPasswordHash, setPasswordHash } from '@/lib/db';
 

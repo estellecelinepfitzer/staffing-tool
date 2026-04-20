@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TEAM_MEMBERS } from '@/config/team';
-import { getWeekCheckins } from '@/lib/db';
+import { getAllMembers, getWeekCheckins } from '@/lib/db';
 import { getISOWeek } from '@/lib/weeks';
 
 // GET /api/dashboard?week=17&year=2026
-// Returns all team members with their check-in for the given week (or current week).
+// Returns all active team members with their check-in for the given week.
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const weekParam = searchParams.get('week');
@@ -14,11 +13,11 @@ export async function GET(req: NextRequest) {
   const week = weekParam ? parseInt(weekParam, 10) : fallback.week;
   const year = yearParam ? parseInt(yearParam, 10) : fallback.year;
 
+  const members = getAllMembers().filter((m) => m.active === 1);
   const checkins = getWeekCheckins(week, year);
   const checkinByToken = new Map(checkins.map((c) => [c.member_token, c]));
 
-  // Build team list — always all members, checked-in ones first by submission time
-  const team = TEAM_MEMBERS.map((member) => ({
+  const team = members.map((member) => ({
     name:    member.name,
     token:   member.token,
     checkin: checkinByToken.get(member.token) ?? null,
@@ -37,17 +36,7 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(
-    {
-      week,
-      year,
-      team,
-      submittedCount: checkins.length,
-      totalCount:     TEAM_MEMBERS.length,
-    },
-    {
-      headers: {
-        'Cache-Control': 'no-store',
-      },
-    },
+    { week, year, team, submittedCount: checkins.length, totalCount: members.length },
+    { headers: { 'Cache-Control': 'no-store' } },
   );
 }

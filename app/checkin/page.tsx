@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { getMemberByToken } from '@/config/team';
+import { getMemberByToken } from '@/lib/db';
 import { getCheckin } from '@/lib/db';
 import { getISOWeek, formatWeekLabel } from '@/lib/weeks';
 import { verifySignedToken, COOKIE_NAME } from '@/lib/auth';

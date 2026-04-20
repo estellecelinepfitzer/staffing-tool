@@ -2,6 +2,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { TEAM_MEMBERS_SEED } from '@/config/team';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'standup.db');
@@ -64,6 +65,28 @@ function initSchema(db: Database.Database) {
       updated_at    TEXT NOT NULL
     )
   `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS team_members (
+      token      TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      email      TEXT NOT NULL UNIQUE,
+      active     INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  // Seed team members from config if table is empty
+  const count = (db.prepare('SELECT COUNT(*) as n FROM team_members').get() as { n: number }).n;
+  if (count === 0) {
+    const insert = db.prepare(
+      'INSERT OR IGNORE INTO team_members (token, name, email, active, created_at) VALUES (?, ?, ?, 1, ?)',
+    );
+    const now = new Date().toISOString();
+    for (const m of TEAM_MEMBERS_SEED) {
+      insert.run(m.token, m.name, m.email, now);
+    }
+  }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -214,4 +237,50 @@ export function consumeResetCode(memberToken: string, code: string): boolean {
   if (new Date(row.expires_at) < new Date()) return false;
   getDb().prepare('DELETE FROM reset_codes WHERE member_token = ?').run(memberToken);
   return true;
+}
+
+// ─── Team members ─────────────────────────────────────────────────────────────
+
+export interface TeamMember {
+  token: string;
+  name: string;
+  email: string;
+  active: number;
+  created_at: string;
+}
+
+export function getMemberByToken(token: string): TeamMember | undefined {
+  return getDb()
+    .prepare('SELECT * FROM team_members WHERE token = ? AND active = 1')
+    .get(token) as TeamMember | undefined;
+}
+
+export function getMemberByEmail(email: string): TeamMember | undefined {
+  return getDb()
+    .prepare('SELECT * FROM team_members WHERE email = ? AND active = 1')
+    .get(email) as TeamMember | undefined;
+}
+
+export function getAllMembers(): TeamMember[] {
+  return getDb()
+    .prepare('SELECT * FROM team_members ORDER BY active DESC, name ASC')
+    .all() as TeamMember[];
+}
+
+export function addMember(token: string, name: string, email: string): void {
+  getDb()
+    .prepare('INSERT INTO team_members (token, name, email, active, created_at) VALUES (?, ?, ?, 1, ?)')
+    .run(token, name, email, new Date().toISOString());
+}
+
+export function setMemberActive(token: string, active: boolean): void {
+  getDb()
+    .prepare('UPDATE team_members SET active = ? WHERE token = ?')
+    .run(active ? 1 : 0, token);
+}
+
+export function updateMember(token: string, name: string, email: string): void {
+  getDb()
+    .prepare('UPDATE team_members SET name = ?, email = ? WHERE token = ?')
+    .run(name, email, token);
 }
