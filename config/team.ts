@@ -24,5 +24,3 @@ export const TEAM_MEMBERS_SEED: TeamMemberSeed[] = [
 ];
 
 
-// Password to view the dashboard — change this to whatever you like
-export const ADMIN_PASSWORD = 'monday2026';

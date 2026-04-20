@@ -76,16 +76,20 @@ function initSchema(db: Database.Database) {
     )
   `);
 
-  // Always upsert seed members so they appear even if DB was pre-existing
-  const upsert = db.prepare(`
-    INSERT INTO team_members (token, name, email, active, created_at)
-    VALUES (?, ?, ?, 1, ?)
-    ON CONFLICT(token) DO NOTHING
-  `);
+  // Always upsert seed members so they appear even on pre-existing DBs
   const now = new Date().toISOString();
+  const insertSeed = db.prepare(
+    'INSERT OR IGNORE INTO team_members (token, name, email, active, created_at) VALUES (?, ?, ?, 1, ?)',
+  );
   for (const m of TEAM_MEMBERS_SEED) {
-    upsert.run(m.token, m.name, m.email, now);
+    try {
+      insertSeed.run(m.token, m.name, m.email, now);
+    } catch (err) {
+      console.error(`[db] Failed to seed member ${m.token}:`, err);
+    }
   }
+  const seededCount = (db.prepare('SELECT COUNT(*) as n FROM team_members').get() as { n: number }).n;
+  console.log(`[db] team_members count after seed: ${seededCount}`);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────

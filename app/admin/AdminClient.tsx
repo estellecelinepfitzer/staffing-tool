@@ -43,6 +43,8 @@ export default function AdminClient() {
       setAuthError(true);
       sessionStorage.removeItem('admin_pw');
       setAdminPassword('');
+    } else {
+      showToast(`Error loading members (${res.status})`);
     }
     setLoading(false);
   }, []);
