@@ -76,16 +76,15 @@ function initSchema(db: Database.Database) {
     )
   `);
 
-  // Seed team members from config if table is empty
-  const count = (db.prepare('SELECT COUNT(*) as n FROM team_members').get() as { n: number }).n;
-  if (count === 0) {
-    const insert = db.prepare(
-      'INSERT OR IGNORE INTO team_members (token, name, email, active, created_at) VALUES (?, ?, ?, 1, ?)',
-    );
-    const now = new Date().toISOString();
-    for (const m of TEAM_MEMBERS_SEED) {
-      insert.run(m.token, m.name, m.email, now);
-    }
+  // Always upsert seed members so they appear even if DB was pre-existing
+  const upsert = db.prepare(`
+    INSERT INTO team_members (token, name, email, active, created_at)
+    VALUES (?, ?, ?, 1, ?)
+    ON CONFLICT(token) DO NOTHING
+  `);
+  const now = new Date().toISOString();
+  for (const m of TEAM_MEMBERS_SEED) {
+    upsert.run(m.token, m.name, m.email, now);
   }
 }
 

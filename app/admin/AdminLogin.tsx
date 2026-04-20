@@ -21,6 +21,7 @@ export default function AdminLogin() {
     });
 
     if (res.ok) {
+      sessionStorage.setItem('admin_pw', password);
       router.refresh();
     } else {
       const data = await res.json().catch(() => ({}));
