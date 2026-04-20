@@ -23,6 +23,7 @@ export default function AdminClient() {
   const [resetTarget, setResetTarget] = useState<string | null>(null);
   const [resetSending, setResetSending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [authError, setAuthError] = useState(false);
   const router = useRouter();
 
   function showToast(msg: string) {
@@ -37,6 +38,11 @@ export default function AdminClient() {
     if (res.ok) {
       const data = await res.json();
       setMembers(data.members);
+      setAuthError(false);
+    } else if (res.status === 401) {
+      setAuthError(true);
+      sessionStorage.removeItem('admin_pw');
+      setAdminPassword('');
     }
     setLoading(false);
   }, []);
@@ -128,6 +134,11 @@ export default function AdminClient() {
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
         <div className="w-full max-w-sm space-y-3">
           <p className="text-sm text-gray-700 text-center">Enter admin password to load users</p>
+          {authError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-center">
+              Incorrect password
+            </p>
+          )}
           <input
             type="password"
             value={adminPassword}

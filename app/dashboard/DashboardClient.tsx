@@ -164,6 +164,12 @@ export default function DashboardClient() {
               {lastRefresh && (
                 <span className="hidden sm:inline text-xs text-gray-300">Refreshes every 60s</span>
               )}
+              <a
+                href="/admin"
+                className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+              >
+                Admin
+              </a>
               <button
                 onClick={() => fetchData(currentWeek)}
                 className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
