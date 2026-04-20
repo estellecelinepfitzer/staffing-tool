@@ -1,7 +1,7 @@
 // Server-only — email sending via Resend.
 import { Resend } from 'resend';
 
-const FROM = 'Monday Standup <noreply@mtip.ch>';
+const FROM = 'Monday Standup <onboarding@resend.dev>';
 
 function getResend(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
