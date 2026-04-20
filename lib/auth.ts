@@ -7,6 +7,11 @@ const SECRET =
 export const COOKIE_NAME = 'checkin_session';
 export const DASHBOARD_COOKIE_NAME = 'dashboard_session';
 
+/** Hash a password for storage. Uses HMAC-SHA256 keyed with the app secret. */
+export function hashPassword(password: string): string {
+  return createHmac('sha256', SECRET).update(password).digest('hex');
+}
+
 /** Returns a signed value: "<token>.<hmac>" */
 export function signToken(token: string): string {
   const sig = createHmac('sha256', SECRET).update(token).digest('hex');

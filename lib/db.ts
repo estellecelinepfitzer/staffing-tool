@@ -49,13 +49,21 @@ function initSchema(db: Database.Database) {
     )
   `);
 
-  // Migrations — add new columns to existing tables
+  // Migrations — add new columns to existing tables without breaking existing data
   addColumnIfMissing(db, 'checkins', 'working_days',        'REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'checkins', 'sourcing_days',       'REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'checkins', 'converting_days',     'REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'checkins', 'execution_days',      'REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'checkins', 'portfolio_exits_days','REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'checkins', 'portfolio_other_days','REAL NOT NULL DEFAULT 0');
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS passwords (
+      member_token  TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    )
+  `);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -145,4 +153,65 @@ export function getWeekCheckins(isoWeek: number, isoYear: number): Checkin[] {
   return getDb()
     .prepare('SELECT * FROM checkins WHERE iso_week = ? AND iso_year = ? ORDER BY submitted_at ASC')
     .all(isoWeek, isoYear) as Checkin[];
+}
+
+// ─── Password storage ─────────────────────────────────────────────────────────
+
+/** Returns the stored password hash for a member, or null if not set. */
+export function getPasswordHash(memberToken: string): string | null {
+  const row = getDb()
+    .prepare('SELECT password_hash FROM passwords WHERE member_token = ?')
+    .get(memberToken) as { password_hash: string } | undefined;
+  return row?.password_hash ?? null;
+}
+
+/** Saves (or updates) the hashed password for a member. */
+export function setPasswordHash(memberToken: string, hash: string): void {
+  getDb()
+    .prepare(`
+      INSERT INTO passwords (member_token, password_hash, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(member_token) DO UPDATE SET
+        password_hash = excluded.password_hash,
+        updated_at    = excluded.updated_at
+    `)
+    .run(memberToken, hash, new Date().toISOString());
+}
+
+// ─── Reset codes ──────────────────────────────────────────────────────────────
+
+interface ResetCode {
+  member_token: string;
+  code: string;
+  expires_at: string;
+}
+
+export function initResetCodesTable(): void {
+  getDb().exec(`
+    CREATE TABLE IF NOT EXISTS reset_codes (
+      member_token TEXT NOT NULL,
+      code         TEXT NOT NULL,
+      expires_at   TEXT NOT NULL
+    )
+  `);
+}
+
+export function saveResetCode(memberToken: string, code: string, expiresAt: Date): void {
+  initResetCodesTable();
+  // Delete any existing codes for this person first
+  getDb().prepare('DELETE FROM reset_codes WHERE member_token = ?').run(memberToken);
+  getDb()
+    .prepare('INSERT INTO reset_codes (member_token, code, expires_at) VALUES (?, ?, ?)')
+    .run(memberToken, code, expiresAt.toISOString());
+}
+
+export function consumeResetCode(memberToken: string, code: string): boolean {
+  initResetCodesTable();
+  const row = getDb()
+    .prepare('SELECT * FROM reset_codes WHERE member_token = ? AND code = ?')
+    .get(memberToken, code) as ResetCode | undefined;
+  if (!row) return false;
+  if (new Date(row.expires_at) < new Date()) return false;
+  getDb().prepare('DELETE FROM reset_codes WHERE member_token = ?').run(memberToken);
+  return true;
 }

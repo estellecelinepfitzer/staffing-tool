@@ -54,6 +54,7 @@ export default function CheckinPage({ searchParams }: PageProps) {
       isoYear={year}
       today={today}
       weekLabel={formatWeekLabel(week, year)}
+      token={token}
     />
   );
 }
