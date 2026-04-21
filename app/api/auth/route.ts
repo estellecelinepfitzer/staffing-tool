@@ -1,6 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMemberByToken } from '@/config/team';
-import { signToken, COOKIE_NAME } from '@/lib/auth';
+import { getMemberByToken } from '@/lib/db';
+import { signToken, hashPassword, COOKIE_NAME } from '@/lib/auth';
+import { getPasswordHash } from '@/lib/db';
+
+// Resolve the expected password hash for a member.
+// Priority: 1) hashed password stored in DB (set via self-service change)
+//           2) plain-text env var PASSWORD_<TOKEN> (set in Railway)
+function resolvePasswordHash(token: string): string | null {
+  // Check DB first (self-service changed passwords)
+  const dbHash = getPasswordHash(token);
+  if (dbHash) return dbHash;
+
+  // Fall back to env var
+  const envKey = `PASSWORD_${token.toUpperCase().replace(/-/g, '_')}`;
+  const envPassword = process.env[envKey];
+  if (envPassword) return hashPassword(envPassword);
+
+  return null; // No password configured — login blocked
+}
 
 // POST /api/auth — validate password, set session cookie
 export async function POST(req: NextRequest) {
@@ -23,14 +40,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid link' }, { status: 404 });
   }
 
-  if (password !== member.password) {
-    // Small delay to slow down brute-force attempts
+  const expectedHash = resolvePasswordHash(token);
+  if (!expectedHash || hashPassword(password) !== expectedHash) {
     await new Promise((r) => setTimeout(r, 400));
     return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
-  // Session cookie — no maxAge means it expires when the browser is closed
+  // Session expires when browser closes (no maxAge)
   res.cookies.set(COOKIE_NAME, signToken(token), {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',

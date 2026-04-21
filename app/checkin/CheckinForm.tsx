@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { TeamMember } from '@/config/team';
+interface TeamMember { name: string; token: string; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -70,11 +70,12 @@ interface Props {
   isoYear: number;
   today: string;
   weekLabel: string;
+  token: string;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function CheckinForm({ member, existing, isoWeek, isoYear, today, weekLabel }: Props) {
+export default function CheckinForm({ member, existing, isoWeek, isoYear, today, weekLabel, token }: Props) {
   const isUpdate = !!existing;
 
   const [date, setDate] = useState(today);
@@ -309,6 +310,13 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
           >
             {submitting ? 'Saving…' : isUpdate ? 'Update response' : 'Submit check-in'}
           </button>
+
+          {/* Change password link */}
+          <p className="text-center text-xs text-gray-400">
+            <a href={`/change-password?token=${token}`} className="underline hover:text-gray-600">
+              Change password
+            </a>
+          </p>
 
         </form>
       </div>

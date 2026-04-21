@@ -82,6 +82,13 @@ export default function PasswordGate({ token, memberName }: Props) {
           >
             {loading ? 'Checking…' : 'Continue'}
           </button>
+
+          <p className="text-center text-xs text-gray-400 pt-1">
+            Forgot your password?{' '}
+            <a href={`/forgot?token=${token}`} className="underline hover:text-gray-600">
+              Reset it
+            </a>
+          </p>
         </form>
 
       </div>

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ADMIN_PASSWORD } from '@/config/team';
 import { signToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
 
-// POST /api/auth/dashboard — validate admin password, set dashboard session cookie
+// POST /api/auth/dashboard — validate dashboard password, set session cookie
+// Password is set via DASHBOARD_PASSWORD env var in Railway
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try {
@@ -12,12 +12,13 @@ export async function POST(req: NextRequest) {
   }
 
   const password = typeof body.password === 'string' ? body.password : '';
+  const expected = process.env.DASHBOARD_PASSWORD;
 
   if (!password) {
     return NextResponse.json({ error: 'Missing password' }, { status: 400 });
   }
 
-  if (password !== ADMIN_PASSWORD) {
+  if (!expected || password !== expected) {
     await new Promise((r) => setTimeout(r, 400));
     return NextResponse.json({ error: 'Incorrect password' }, { status: 401 });
   }
