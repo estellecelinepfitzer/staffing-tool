@@ -77,7 +77,7 @@ export async function POST(
           firstName(member.name),
           cycle.name,
           cycle.self_due,
-          `${BASE_URL}/review/${member.token}/self/${cycleId}`,
+          `${BASE_URL}/review/self?cycle=${cycleId}&token=${member.token}`,
         ),
       ),
     );
@@ -108,7 +108,7 @@ export async function POST(
           const subject = getTeamMember(st);
           return {
             subjectName: subject?.name ?? st,
-            link: `${BASE_URL}/review/${reviewerToken}/peer/${cycleId}/${st}`,
+            link: `${BASE_URL}/review/peer?cycle=${cycleId}&token=${reviewerToken}&subject=${st}`,
           };
         });
 
@@ -157,7 +157,7 @@ export async function POST(
           const report = getTeamMember(rt);
           return {
             name: report?.name ?? rt,
-            link: `${BASE_URL}/review/${managerToken}/manager/${cycleId}/${rt}`,
+            link: `${BASE_URL}/review/manager?cycle=${cycleId}&token=${managerToken}&subject=${rt}`,
           };
         });
 

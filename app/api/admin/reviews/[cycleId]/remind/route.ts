@@ -59,7 +59,7 @@ export async function POST(
   if (selfA && cycle.status === 'self_review_open') {
     outstanding.push({
       label: 'Self-review',
-      link: `${BASE_URL}/review/${body.token}/self/${cycleId}`,
+      link: `${BASE_URL}/review/self?cycle=${cycleId}&token=${body.token}`,
     });
   }
 
@@ -76,7 +76,7 @@ export async function POST(
       const subject = getTeamMember(a.subject_token);
       outstanding.push({
         label: `Peer review for ${subject?.name ?? a.subject_token}`,
-        link: `${BASE_URL}/review/${body.token}/peer/${cycleId}/${a.subject_token}`,
+        link: `${BASE_URL}/review/peer?cycle=${cycleId}&token=${body.token}&subject=${a.subject_token}`,
       });
     }
   }
@@ -94,7 +94,7 @@ export async function POST(
       const subject = getTeamMember(a.subject_token);
       outstanding.push({
         label: `Manager review for ${subject?.name ?? a.subject_token}`,
-        link: `${BASE_URL}/review/${body.token}/manager/${cycleId}/${a.subject_token}`,
+        link: `${BASE_URL}/review/manager?cycle=${cycleId}&token=${body.token}&subject=${a.subject_token}`,
       });
     }
   }
