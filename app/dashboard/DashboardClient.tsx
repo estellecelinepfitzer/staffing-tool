@@ -164,6 +164,12 @@ export default function DashboardClient() {
               {lastRefresh && (
                 <span className="hidden sm:inline text-xs text-gray-300">Refreshes every 60s</span>
               )}
+              <a
+                href="/admin"
+                className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+              >
+                Admin
+              </a>
               <button
                 onClick={() => fetchData(currentWeek)}
                 className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
@@ -230,7 +236,13 @@ function TeamRow({ member }: { member: MemberRow }) {
           {checkin && (
             <span className={`w-2 h-2 rounded-full shrink-0 ${moodDot(checkin.mood)}`} title={`Mood: ${checkin.mood}`} />
           )}
-          <span className="font-medium text-gray-900">{firstName}</span>
+          <a
+            href={`/checkin?token=${member.token}`}
+            className="font-medium text-gray-900 hover:underline"
+            title="Open check-in form"
+          >
+            {firstName}
+          </a>
         </div>
         {checkin ? (
           <p className="text-xs text-gray-400 mt-0.5 ml-4">

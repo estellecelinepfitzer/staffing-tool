@@ -2,6 +2,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import { TEAM_MEMBERS_SEED } from '@/config/team';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'standup.db');
@@ -170,6 +171,46 @@ function initSchema(db: Database.Database) {
       UNIQUE(cycle_id, subject_token)
     )
   `);
+  // Migrations — add new columns to existing tables without breaking existing data
+  addColumnIfMissing(db, 'checkins', 'working_days',        'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'sourcing_days',       'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'converting_days',     'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'execution_days',      'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'portfolio_exits_days','REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'checkins', 'portfolio_other_days','REAL NOT NULL DEFAULT 0');
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS passwords (
+      member_token  TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS team_members (
+      token      TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      email      TEXT NOT NULL UNIQUE,
+      active     INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL
+    )
+  `);
+
+  // Always upsert seed members so they appear even on pre-existing DBs
+  const now = new Date().toISOString();
+  const insertSeed = db.prepare(
+    'INSERT OR IGNORE INTO team_members (token, name, email, active, created_at) VALUES (?, ?, ?, 1, ?)',
+  );
+  for (const m of TEAM_MEMBERS_SEED) {
+    try {
+      insertSeed.run(m.token, m.name, m.email, now);
+    } catch (err) {
+      console.error(`[db] Failed to seed member ${m.token}:`, err);
+    }
+  }
+  const seededCount = (db.prepare('SELECT COUNT(*) as n FROM team_members').get() as { n: number }).n;
+  console.log(`[db] team_members count after seed: ${seededCount}`);
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -525,4 +566,109 @@ export function getCycleSignoffs(cycleId: number): ReviewSignoff[] {
   return getDb()
     .prepare('SELECT * FROM review_signoffs WHERE cycle_id = ?')
     .all(cycleId) as ReviewSignoff[];
+// ─── Password storage ─────────────────────────────────────────────────────────
+
+/** Returns the stored password hash for a member, or null if not set. */
+export function getPasswordHash(memberToken: string): string | null {
+  const row = getDb()
+    .prepare('SELECT password_hash FROM passwords WHERE member_token = ?')
+    .get(memberToken) as { password_hash: string } | undefined;
+  return row?.password_hash ?? null;
+}
+
+/** Saves (or updates) the hashed password for a member. */
+export function setPasswordHash(memberToken: string, hash: string): void {
+  getDb()
+    .prepare(`
+      INSERT INTO passwords (member_token, password_hash, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(member_token) DO UPDATE SET
+        password_hash = excluded.password_hash,
+        updated_at    = excluded.updated_at
+    `)
+    .run(memberToken, hash, new Date().toISOString());
+}
+
+// ─── Reset codes ──────────────────────────────────────────────────────────────
+
+interface ResetCode {
+  member_token: string;
+  code: string;
+  expires_at: string;
+}
+
+export function initResetCodesTable(): void {
+  getDb().exec(`
+    CREATE TABLE IF NOT EXISTS reset_codes (
+      member_token TEXT NOT NULL,
+      code         TEXT NOT NULL,
+      expires_at   TEXT NOT NULL
+    )
+  `);
+}
+
+export function saveResetCode(memberToken: string, code: string, expiresAt: Date): void {
+  initResetCodesTable();
+  // Delete any existing codes for this person first
+  getDb().prepare('DELETE FROM reset_codes WHERE member_token = ?').run(memberToken);
+  getDb()
+    .prepare('INSERT INTO reset_codes (member_token, code, expires_at) VALUES (?, ?, ?)')
+    .run(memberToken, code, expiresAt.toISOString());
+}
+
+export function consumeResetCode(memberToken: string, code: string): boolean {
+  initResetCodesTable();
+  const row = getDb()
+    .prepare('SELECT * FROM reset_codes WHERE member_token = ? AND code = ?')
+    .get(memberToken, code) as ResetCode | undefined;
+  if (!row) return false;
+  if (new Date(row.expires_at) < new Date()) return false;
+  getDb().prepare('DELETE FROM reset_codes WHERE member_token = ?').run(memberToken);
+  return true;
+}
+
+// ─── Team members ─────────────────────────────────────────────────────────────
+
+export interface TeamMember {
+  token: string;
+  name: string;
+  email: string;
+  active: number;
+  created_at: string;
+}
+
+export function getMemberByToken(token: string): TeamMember | undefined {
+  return getDb()
+    .prepare('SELECT * FROM team_members WHERE token = ? AND active = 1')
+    .get(token) as TeamMember | undefined;
+}
+
+export function getMemberByEmail(email: string): TeamMember | undefined {
+  return getDb()
+    .prepare('SELECT * FROM team_members WHERE email = ? AND active = 1')
+    .get(email) as TeamMember | undefined;
+}
+
+export function getAllMembers(): TeamMember[] {
+  return getDb()
+    .prepare('SELECT * FROM team_members ORDER BY active DESC, name ASC')
+    .all() as TeamMember[];
+}
+
+export function addMember(token: string, name: string, email: string): void {
+  getDb()
+    .prepare('INSERT INTO team_members (token, name, email, active, created_at) VALUES (?, ?, ?, 1, ?)')
+    .run(token, name, email, new Date().toISOString());
+}
+
+export function setMemberActive(token: string, active: boolean): void {
+  getDb()
+    .prepare('UPDATE team_members SET active = ? WHERE token = ?')
+    .run(active ? 1 : 0, token);
+}
+
+export function updateMember(token: string, name: string, email: string): void {
+  getDb()
+    .prepare('UPDATE team_members SET name = ?, email = ? WHERE token = ?')
+    .run(name, email, token);
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMemberByToken } from '@/config/team';
+import { getMemberByToken } from '@/lib/db';
 import { getCheckin, upsertCheckin } from '@/lib/db';
 import { getISOWeek } from '@/lib/weeks';
 
