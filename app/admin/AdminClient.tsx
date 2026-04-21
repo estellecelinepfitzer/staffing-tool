@@ -96,6 +96,20 @@ export default function AdminClient({ members: initialMembers }: Props) {
     }
   }
 
+  async function handleDelete(token: string, name: string) {
+    if (!confirm(`Permanently delete ${name}? This removes all their check-ins and review data and cannot be undone.`)) return;
+    setSaving((s) => ({ ...s, [`delete_${token}`]: true }));
+    try {
+      const res = await fetch(`/api/admin/team/${token}/delete`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete member');
+      setMembers((prev) => prev.filter((m) => m.token !== token));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error deleting member');
+    } finally {
+      setSaving((s) => ({ ...s, [`delete_${token}`]: false }));
+    }
+  }
+
   async function handleSetActive(token: string, name: string, active: boolean) {
     const label = active ? 'Activate' : 'Deactivate';
     if (!active && !confirm(`Deactivate ${name}? They will no longer appear in check-ins or reviews.`)) return;
@@ -291,25 +305,36 @@ export default function AdminClient({ members: initialMembers }: Props) {
                       )}
                     </td>
 
-                    {/* Activate / Deactivate */}
+                    {/* Activate / Deactivate / Delete */}
                     <td className="px-4 py-3">
-                      {isActive ? (
-                        <button
-                          onClick={() => handleSetActive(member.token, member.name, false)}
-                          disabled={saving[`active_${member.token}`]}
-                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 transition-colors"
-                        >
-                          Deactivate
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleSetActive(member.token, member.name, true)}
-                          disabled={saving[`active_${member.token}`]}
-                          className="rounded-lg border border-green-200 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors"
-                        >
-                          Activate
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {isActive ? (
+                          <button
+                            onClick={() => handleSetActive(member.token, member.name, false)}
+                            disabled={saving[`active_${member.token}`]}
+                            className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 transition-colors"
+                          >
+                            Deactivate
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleSetActive(member.token, member.name, true)}
+                              disabled={saving[`active_${member.token}`]}
+                              className="rounded-lg border border-green-200 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors"
+                            >
+                              Activate
+                            </button>
+                            <button
+                              onClick={() => handleDelete(member.token, member.name)}
+                              disabled={saving[`delete_${member.token}`]}
+                              className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-40 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
