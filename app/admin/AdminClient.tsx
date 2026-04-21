@@ -77,6 +77,25 @@ export default function AdminClient({ members: initialMembers }: Props) {
     }
   }
 
+  async function handleCheckinToggle(token: string, checkin: boolean) {
+    setSaving((s) => ({ ...s, [`checkin_${token}`]: true }));
+    try {
+      const res = await fetch(`/api/admin/team/${token}/checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ checkin }),
+      });
+      if (!res.ok) throw new Error('Failed to update check-in');
+      setMembers((prev) =>
+        prev.map((m) => (m.token === token ? { ...m, checkin: checkin ? 1 : 0 } : m)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error updating check-in');
+    } finally {
+      setSaving((s) => ({ ...s, [`checkin_${token}`]: false }));
+    }
+  }
+
   async function handleSetActive(token: string, name: string, active: boolean) {
     const label = active ? 'Activate' : 'Deactivate';
     if (!active && !confirm(`Deactivate ${name}? They will no longer appear in check-ins or reviews.`)) return;
@@ -163,6 +182,7 @@ export default function AdminClient({ members: initialMembers }: Props) {
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Email</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Manager</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">Check-in</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Password</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Active</th>
               </tr>
@@ -207,6 +227,24 @@ export default function AdminClient({ members: initialMembers }: Props) {
                             </option>
                           ))}
                       </select>
+                    </td>
+
+                    {/* Check-in toggle */}
+                    <td className="px-4 py-3">
+                      {isActive && (
+                        <button
+                          onClick={() => handleCheckinToggle(member.token, !member.checkin)}
+                          disabled={saving[`checkin_${member.token}`]}
+                          className={[
+                            'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40',
+                            member.checkin
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                              : 'border border-gray-200 text-gray-400 hover:bg-gray-50',
+                          ].join(' ')}
+                        >
+                          {member.checkin ? '✓ Yes' : 'No'}
+                        </button>
+                      )}
                     </td>
 
                     {/* Password reset */}

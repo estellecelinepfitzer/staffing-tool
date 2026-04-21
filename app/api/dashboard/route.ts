@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveTeamMembers, getWeekCheckins } from '@/lib/db';
+import { getCheckinMembers, getWeekCheckins } from '@/lib/db';
 import { getISOWeek } from '@/lib/weeks';
 
 // GET /api/dashboard?week=17&year=2026
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const week = weekParam ? parseInt(weekParam, 10) : fallback.week;
   const year = yearParam ? parseInt(yearParam, 10) : fallback.year;
 
-  const members = getActiveTeamMembers();
+  const members = getCheckinMembers();
   const checkins = getWeekCheckins(week, year);
   const checkinByToken = new Map(checkins.map((c) => [c.member_token, c]));
 
