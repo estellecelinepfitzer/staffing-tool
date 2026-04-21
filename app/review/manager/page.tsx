@@ -99,16 +99,8 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
     );
   }
 
-  // Check peer submissions
+  // Peer submissions (show whatever is available)
   const peerAssignments: ReviewAssignment[] = getSubmittedPeerAssignmentsForSubject(cycleId, subjectToken);
-  if (peerAssignments.length < 3) {
-    return (
-      <InfoScreen
-        title="Not enough peer reviews"
-        body={`Not enough peer reviews submitted yet (${peerAssignments.length}/3 minimum). Contact admin if this looks wrong.`}
-      />
-    );
-  }
 
   // Self-review
   const selfAssignment = getAssignmentByKey(cycleId, subjectToken, subjectToken, 'self');
