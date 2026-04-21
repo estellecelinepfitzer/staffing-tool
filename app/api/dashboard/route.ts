@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveTeamMembers } from '@/lib/db';
-import { getWeekCheckins } from '@/lib/db';
-import { getAllMembers, getWeekCheckins } from '@/lib/db';
+import { getActiveTeamMembers, getWeekCheckins } from '@/lib/db';
 import { getISOWeek } from '@/lib/weeks';
 
 // GET /api/dashboard?week=17&year=2026
@@ -15,10 +13,9 @@ export async function GET(req: NextRequest) {
   const week = weekParam ? parseInt(weekParam, 10) : fallback.week;
   const year = yearParam ? parseInt(yearParam, 10) : fallback.year;
 
-  const members = getAllMembers().filter((m) => m.active === 1);
+  const members = getActiveTeamMembers();
   const checkins = getWeekCheckins(week, year);
   const checkinByToken = new Map(checkins.map((c) => [c.member_token, c]));
-  const TEAM_MEMBERS = getActiveTeamMembers();
 
   const team = members.map((member) => ({
     name:    member.name,
