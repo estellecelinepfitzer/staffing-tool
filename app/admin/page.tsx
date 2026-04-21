@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { isAdminAuthenticated } from '@/lib/adminAuth';
-import { getActiveTeamMembers } from '@/lib/db';
+import { getAllTeamMembers } from '@/lib/db';
 import DashboardPasswordGate from '@/app/dashboard/DashboardPasswordGate';
 import AdminClient from './AdminClient';
 
@@ -10,7 +10,7 @@ export default function AdminPage() {
     return <DashboardPasswordGate />;
   }
 
-  const members = getActiveTeamMembers();
+  const members = getAllTeamMembers();
 
   return <AdminClient members={members} />;
 }
