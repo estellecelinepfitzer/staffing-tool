@@ -399,8 +399,14 @@ export function getCheckinMembers(): TeamMemberRow[] {
 
 export function deleteTeamMember(token: string): void {
   const db = getDb();
-  // Remove all review data for this member first (no FK constraints on token cols)
-  db.prepare('DELETE FROM review_responses  WHERE reviewer_token = ? OR assignment_id IN (SELECT id FROM review_assignments WHERE subject_token = ? OR reviewer_token = ?)').run(token, token, token);
+  // Delete responses for any assignment involving this member
+  db.prepare(`
+    DELETE FROM review_responses
+    WHERE assignment_id IN (
+      SELECT id FROM review_assignments
+      WHERE subject_token = ? OR reviewer_token = ?
+    )
+  `).run(token, token);
   db.prepare('DELETE FROM review_assignments WHERE subject_token = ? OR reviewer_token = ?').run(token, token);
   db.prepare('DELETE FROM review_signoffs   WHERE subject_token = ?').run(token);
   db.prepare('DELETE FROM checkins          WHERE member_token = ?').run(token);
