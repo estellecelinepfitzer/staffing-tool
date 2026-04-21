@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveTeamMembers } from '@/lib/db';
+import { getWeekCheckins } from '@/lib/db';
 import { getAllMembers, getWeekCheckins } from '@/lib/db';
 import { getISOWeek } from '@/lib/weeks';
 
@@ -16,6 +18,7 @@ export async function GET(req: NextRequest) {
   const members = getAllMembers().filter((m) => m.active === 1);
   const checkins = getWeekCheckins(week, year);
   const checkinByToken = new Map(checkins.map((c) => [c.member_token, c]));
+  const TEAM_MEMBERS = getActiveTeamMembers();
 
   const team = members.map((member) => ({
     name:    member.name,
