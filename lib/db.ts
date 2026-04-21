@@ -177,6 +177,9 @@ function initSchema(db: Database.Database) {
   addColumnIfMissing(db, 'checkins', 'execution_days',      'REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'checkins', 'portfolio_exits_days','REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'checkins', 'portfolio_other_days','REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'team_members', 'checkin', 'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfMissing(db, 'team_members', 'password', 'TEXT NOT NULL DEFAULT ""');
+  addColumnIfMissing(db, 'team_members', 'manager_token', 'TEXT NOT NULL DEFAULT ""');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS passwords (
@@ -243,6 +246,7 @@ export interface TeamMemberRow {
   password: string;
   manager_token: string;
   active: number;
+  checkin: number;
 }
 
 export type CycleStatus =
@@ -379,6 +383,18 @@ export function setMemberActive(token: string, active: boolean): void {
   getDb()
     .prepare('UPDATE team_members SET active = ? WHERE token = ?')
     .run(active ? 1 : 0, token);
+}
+
+export function setMemberCheckin(token: string, checkin: boolean): void {
+  getDb()
+    .prepare('UPDATE team_members SET checkin = ? WHERE token = ?')
+    .run(checkin ? 1 : 0, token);
+}
+
+export function getCheckinMembers(): TeamMemberRow[] {
+  return getDb()
+    .prepare('SELECT * FROM team_members WHERE active = 1 AND checkin = 1 ORDER BY name ASC')
+    .all() as TeamMemberRow[];
 }
 
 export function upsertTeamMember(data: Omit<TeamMemberRow, 'active'>): void {
