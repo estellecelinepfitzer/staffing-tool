@@ -1,31 +1,28 @@
 // ─── Team configuration ────────────────────────────────────────────────────
-// Edit this file to add or remove team members.
-// Each member needs a unique `token` — this becomes their private check-in URL:
-//   /checkin?token=<token>
-// Change each person's `password` to whatever you like — they enter it once
-// and get a 7-day session cookie. Passwords are stored in plain text here
-// since this is a private repo for a trusted internal team.
+// Team members are now stored in the SQLite database (team_members table).
+// This file holds only constants and server-side lookup helpers.
 // ───────────────────────────────────────────────────────────────────────────
 
-export interface TeamMember {
-  name: string;
-  token: string;
-  password: string;
-}
+import { getTeamMember, getActiveTeamMembers, type TeamMemberRow } from '@/lib/db';
 
-export const TEAM_MEMBERS: TeamMember[] = [
-  { name: 'Estelle Pfitzer',    token: 'estelle-pfz',   password: 'estelle2026'   },
-  { name: 'Katrin Vatiska',     token: 'katrin-vat',    password: 'katrin2026'    },
-  { name: 'Magdalena Plotczyk', token: 'magdalena-plt', password: 'magdalena2026' },
-  { name: 'Marton Kenessey',    token: 'marton-ken',    password: 'marton2026'    },
-  { name: 'Teresa Pla Prats',   token: 'teresa-plp',    password: 'teresa2026'    },
-  { name: 'Tim Schneider',      token: 'tim-sch',       password: 'tim2026'       },
-  { name: 'Jean Wallerand',     token: 'jean-wal',      password: 'jean2026'      },
-];
+export type TeamMember = TeamMemberRow;
 
+// Re-export for convenience
+export { getActiveTeamMembers as getTeamMembers };
+
+/**
+ * Look up a team member by their URL token.
+ * Returns undefined if not found or inactive.
+ */
 export function getMemberByToken(token: string): TeamMember | undefined {
-  return TEAM_MEMBERS.find((m) => m.token === token);
+  const member = getTeamMember(token);
+  if (!member || member.active === 0) return undefined;
+  return member;
 }
 
-// Password to view the dashboard — change this to whatever you like
-export const ADMIN_PASSWORD = 'monday2026';
+// Password to view the dashboard / admin — change in .env or Railway env vars
+export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'monday2026';
+
+// TEAM_MEMBERS kept for the checkin dashboard (reads active members from DB)
+export const TEAM_MEMBERS: TeamMember[] = [];
+// Note: use getActiveTeamMembers() from lib/db for a fresh list at request time.

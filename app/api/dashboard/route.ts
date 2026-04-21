@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { TEAM_MEMBERS } from '@/config/team';
+import { getActiveTeamMembers } from '@/lib/db';
 import { getWeekCheckins } from '@/lib/db';
 import { getISOWeek } from '@/lib/weeks';
 
@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
 
   const checkins = getWeekCheckins(week, year);
   const checkinByToken = new Map(checkins.map((c) => [c.member_token, c]));
+  const TEAM_MEMBERS = getActiveTeamMembers();
 
   // Build team list — always all members, checked-in ones first by submission time
   const team = TEAM_MEMBERS.map((member) => ({
