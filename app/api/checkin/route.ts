@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMemberByToken } from '@/lib/db';
-import { getCheckin, upsertCheckin } from '@/lib/db';
+import { getMemberByToken, getCheckin, upsertCheckin } from '@/lib/db';
 import { getISOWeek } from '@/lib/weeks';
 
 // GET /api/checkin?token=abc&week=17&year=2026
