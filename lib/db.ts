@@ -452,6 +452,24 @@ export function getAllCycles(): ReviewCycle[] {
     .all() as ReviewCycle[];
 }
 
+export function deleteCycle(id: number): void {
+  const db = getDb();
+  const deleteResponses = db.prepare(`
+    DELETE FROM review_responses WHERE assignment_id IN (
+      SELECT id FROM review_assignments WHERE cycle_id = ?
+    )
+  `);
+  const deleteAssignments = db.prepare('DELETE FROM review_assignments WHERE cycle_id = ?');
+  const deleteSignoffs = db.prepare('DELETE FROM review_signoffs WHERE cycle_id = ?');
+  const deleteCycleStmt = db.prepare('DELETE FROM review_cycles WHERE id = ?');
+  db.transaction(() => {
+    deleteResponses.run(id);
+    deleteAssignments.run(id);
+    deleteSignoffs.run(id);
+    deleteCycleStmt.run(id);
+  })();
+}
+
 export function updateCycle(id: number, data: Partial<Pick<ReviewCycle, 'name' | 'self_due' | 'peer_due' | 'manager_due'>>): void {
   const fields: string[] = [];
   const values: unknown[] = [];

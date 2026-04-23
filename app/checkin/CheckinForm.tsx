@@ -135,6 +135,8 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token: member.token,
+          week: isoWeek,
+          year: isoYear,
           mood,
           capacity,
           ...dealFields,

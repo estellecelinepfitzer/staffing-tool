@@ -211,7 +211,7 @@ export default function DashboardClient() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {data.team.map((member) => (
-                <TeamRow key={member.token} member={member} />
+                <TeamRow key={member.token} member={member} week={data.week} year={data.year} />
               ))}
             </tbody>
           </table>
@@ -223,9 +223,14 @@ export default function DashboardClient() {
 
 // ─── Table row ────────────────────────────────────────────────────────────────
 
-function TeamRow({ member }: { member: MemberRow }) {
+function TeamRow({ member, week, year }: { member: MemberRow; week: number; year: number }) {
   const { checkin } = member;
   const firstName = member.name.split(' ')[0];
+  const nowWeek = getISOWeek(new Date());
+  const isCurrentWeek = week === nowWeek.week && year === nowWeek.year;
+  const checkinHref = isCurrentWeek
+    ? `/checkin?token=${member.token}`
+    : `/checkin?token=${member.token}&week=${week}&year=${year}`;
 
   return (
     <tr className={`align-top ${!checkin ? 'opacity-50' : ''}`}>
@@ -237,7 +242,7 @@ function TeamRow({ member }: { member: MemberRow }) {
             <span className={`w-2 h-2 rounded-full shrink-0 ${moodDot(checkin.mood)}`} title={`Mood: ${checkin.mood}`} />
           )}
           <a
-            href={`/checkin?token=${member.token}`}
+            href={checkinHref}
             className="font-medium text-gray-900 hover:underline"
             title="Open check-in form"
           >

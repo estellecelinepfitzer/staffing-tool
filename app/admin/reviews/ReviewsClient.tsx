@@ -36,7 +36,24 @@ export default function ReviewsClient({ cycles: initialCycles }: Props) {
   });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const router = useRouter();
+
+  async function handleDelete(id: number) {
+    setDeletingId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/reviews/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete cycle');
+      setCycles((prev) => prev.filter((c) => c.id !== id));
+      setConfirmDeleteId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error deleting cycle');
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -160,26 +177,61 @@ export default function ReviewsClient({ cycles: initialCycles }: Props) {
         ) : (
           <div className="space-y-2">
             {cycles.map((cycle) => (
-              <Link
-                key={cycle.id}
-                href={`/admin/reviews/${cycle.id}`}
-                className="flex items-center justify-between bg-white rounded-xl border border-gray-200 px-5 py-4 hover:bg-gray-50 transition-colors group"
-              >
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{cycle.name}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Created {new Date(cycle.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[cycle.status]}`}
-                  >
-                    {STATUS_LABELS[cycle.status]}
-                  </span>
-                  <span className="text-gray-300 group-hover:text-gray-400">→</span>
-                </div>
-              </Link>
+              <div key={cycle.id}>
+                {confirmDeleteId === cycle.id ? (
+                  <div className="flex items-center justify-between bg-red-50 rounded-xl border border-red-200 px-5 py-4">
+                    <p className="text-sm text-red-700 font-medium">
+                      Permanently delete &ldquo;{cycle.name}&rdquo;? This cannot be undone.
+                    </p>
+                    <div className="flex items-center gap-2 shrink-0 ml-4">
+                      <button
+                        onClick={() => handleDelete(cycle.id)}
+                        disabled={deletingId === cycle.id}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-40 transition-colors"
+                      >
+                        {deletingId === cycle.id ? 'Deleting…' : 'Yes, delete'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <Link
+                      href={`/admin/reviews/${cycle.id}`}
+                      className="flex-1 flex items-center justify-between bg-white rounded-xl border border-gray-200 px-5 py-4 hover:bg-gray-50 transition-colors"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{cycle.name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Created {new Date(cycle.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[cycle.status]}`}
+                        >
+                          {STATUS_LABELS[cycle.status]}
+                        </span>
+                        <span className="text-gray-300 group-hover:text-gray-400">→</span>
+                      </div>
+                    </Link>
+                    <button
+                      onClick={() => setConfirmDeleteId(cycle.id)}
+                      className="p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Delete cycle"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

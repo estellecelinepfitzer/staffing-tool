@@ -58,7 +58,11 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
-  const { week, year } = getISOWeek(now);
+  const currentIso = getISOWeek(now);
+  const weekRaw = body.week !== undefined ? Number(body.week) : NaN;
+  const yearRaw = body.year !== undefined ? Number(body.year) : NaN;
+  const week = isFinite(weekRaw) && weekRaw > 0 ? weekRaw : currentIso.week;
+  const year = isFinite(yearRaw) && yearRaw > 0 ? yearRaw : currentIso.year;
 
   const toNum = (v: unknown, fallback = 0) => {
     const n = Number(v);

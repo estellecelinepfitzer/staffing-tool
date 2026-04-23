@@ -10,11 +10,13 @@ import PasswordGate from './PasswordGate';
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  searchParams: { token?: string };
+  searchParams: { token?: string; week?: string; year?: string };
 }
 
 export default function CheckinPage({ searchParams }: PageProps) {
   const token = searchParams.token?.trim();
+  const weekParam = searchParams.week ? parseInt(searchParams.week, 10) : null;
+  const yearParam = searchParams.year ? parseInt(searchParams.year, 10) : null;
 
   if (!token) {
     return <ErrorScreen title="No token provided" body="Please use your personal check-in link." />;
@@ -42,7 +44,9 @@ export default function CheckinPage({ searchParams }: PageProps) {
   }
 
   const now = new Date();
-  const { week, year } = getISOWeek(now);
+  const currentIso = getISOWeek(now);
+  const week = weekParam ?? currentIso.week;
+  const year = yearParam ?? currentIso.year;
   const existing = getCheckin(token, week, year);
   const today = now.toISOString().split('T')[0];
 
