@@ -234,31 +234,6 @@ function initSchema(db: Database.Database) {
     )
   `);
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS team_members (
-      token      TEXT PRIMARY KEY,
-      name       TEXT NOT NULL,
-      email      TEXT NOT NULL UNIQUE,
-      active     INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL
-    )
-  `);
-
-  // Always upsert seed members so they appear even on pre-existing DBs
-  const now = new Date().toISOString();
-  const insertSeed = db.prepare(
-    'INSERT OR IGNORE INTO team_members (token, name, email, active, created_at) VALUES (?, ?, ?, 1, ?)',
-  );
-  for (const m of SEED_MEMBERS) {
-    try {
-      insertSeed.run(m.token, m.name, m.email, now);
-    } catch (err) {
-      console.error(`[db] Failed to seed member ${m.token}:`, err);
-    }
-  }
-  const seededCount = (db.prepare('SELECT COUNT(*) as n FROM team_members').get() as { n: number }).n;
-  console.log(`[db] team_members count after seed: ${seededCount}`);
-
   // Backfill questions for existing cycles that have none
   const cycles = db.prepare('SELECT id FROM review_cycles').all() as { id: number }[];
   for (const { id } of cycles) {
