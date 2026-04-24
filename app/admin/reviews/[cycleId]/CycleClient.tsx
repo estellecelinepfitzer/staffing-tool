@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -9,7 +9,10 @@ import {
   ReviewAssignment,
   ReviewSignoff,
   TeamMemberRow,
+  CycleQuestion,
 } from '@/lib/db';
+import GoalsPanel from './GoalsPanel';
+import QuestionsPanel from './QuestionsPanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +21,9 @@ interface Props {
   members: TeamMemberRow[];
   assignments: ReviewAssignment[];
   signoffs: ReviewSignoff[];
+  selfQuestions: CycleQuestion[];
+  peerQuestions: CycleQuestion[];
+  managerQuestions: CycleQuestion[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -65,7 +71,7 @@ const ADVANCE_LABELS: Partial<Record<CycleStatus, string>> = {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function CycleClient({ cycle: initialCycle, members, assignments: initialAssignments, signoffs }: Props) {
+export default function CycleClient({ cycle: initialCycle, members, assignments: initialAssignments, signoffs, selfQuestions, peerQuestions, managerQuestions }: Props) {
   const [cycle, setCycle] = useState<ReviewCycle>(initialCycle);
   const [assignments, setAssignments] = useState<ReviewAssignment[]>(initialAssignments);
   const [membersList, setMembersList] = useState<TeamMemberRow[]>(members);
@@ -475,6 +481,22 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
           </div>
         </Section>
 
+        {/* ── Goals ── */}
+        <Section title="Goals">
+          <GoalsPanel cycleId={cycleId} members={membersList} />
+        </Section>
+
+        {/* ── Questions ── */}
+        <Section title="Questions">
+          <QuestionsTabPanel
+            cycleId={cycleId}
+            selfQuestions={selfQuestions}
+            peerQuestions={peerQuestions}
+            managerQuestions={managerQuestions}
+            isLocked={!isDraft}
+          />
+        </Section>
+
         {/* ── Phase Controls ── */}
         <Section title="Phase Controls">
           <div className="flex items-center gap-3 flex-wrap">
@@ -598,4 +620,54 @@ function Check() {
 
 function Dash() {
   return <span className="text-gray-300">—</span>;
+}
+
+function QuestionsTabPanel({
+  cycleId,
+  selfQuestions,
+  peerQuestions,
+  managerQuestions,
+  isLocked,
+}: {
+  cycleId: number;
+  selfQuestions: CycleQuestion[];
+  peerQuestions: CycleQuestion[];
+  managerQuestions: CycleQuestion[];
+  isLocked: boolean;
+}) {
+  const [tab, setTab] = useState<'self' | 'peer' | 'manager'>('self');
+
+  const tabs = [
+    { key: 'self' as const, label: 'Self' },
+    { key: 'peer' as const, label: 'Peer' },
+    { key: 'manager' as const, label: 'Manager' },
+  ];
+
+  const questionsMap = { self: selfQuestions, peer: peerQuestions, manager: managerQuestions };
+
+  return (
+    <div>
+      <div className="flex gap-1 mb-4 border-b border-gray-100 pb-2">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              tab === t.key
+                ? 'bg-gray-900 text-white'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <QuestionsPanel
+        cycleId={cycleId}
+        reviewType={tab}
+        initialQuestions={questionsMap[tab]}
+        isLocked={isLocked}
+      />
+    </div>
+  );
 }

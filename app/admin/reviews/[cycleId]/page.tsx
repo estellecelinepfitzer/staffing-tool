@@ -6,6 +6,7 @@ import {
   getActiveTeamMembers,
   getCycleAssignments,
   getCycleSignoffs,
+  getCycleQuestions,
 } from '@/lib/db';
 import DashboardPasswordGate from '@/app/dashboard/DashboardPasswordGate';
 import CycleClient from './CycleClient';
@@ -29,6 +30,9 @@ export default function CyclePage({ params }: Props) {
   const members = getActiveTeamMembers();
   const assignments = getCycleAssignments(cycleId);
   const signoffs = getCycleSignoffs(cycleId);
+  const selfQuestions = getCycleQuestions(cycleId, 'self');
+  const peerQuestions = getCycleQuestions(cycleId, 'peer');
+  const managerQuestions = getCycleQuestions(cycleId, 'manager');
 
   return (
     <CycleClient
@@ -36,6 +40,9 @@ export default function CyclePage({ params }: Props) {
       members={members}
       assignments={assignments}
       signoffs={signoffs}
+      selfQuestions={selfQuestions}
+      peerQuestions={peerQuestions}
+      managerQuestions={managerQuestions}
     />
   );
 }

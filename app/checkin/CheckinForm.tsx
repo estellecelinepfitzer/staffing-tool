@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 interface TeamMember { name: string; token: string; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,6 +64,18 @@ interface ExistingCheckin {
   portfolio_other_days: number;
 }
 
+interface CycleGoal {
+  id: number;
+  body: string;
+}
+
+interface SharedReviewItem {
+  assignment_id: number;
+  cycleName: string;
+  subjectName: string;
+  shared_at: string;
+}
+
 interface Props {
   member: TeamMember;
   existing: ExistingCheckin | null;
@@ -71,11 +84,13 @@ interface Props {
   today: string;
   weekLabel: string;
   token: string;
+  goals?: CycleGoal[];
+  sharedReviews?: SharedReviewItem[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function CheckinForm({ member, existing, isoWeek, isoYear, today, weekLabel, token }: Props) {
+export default function CheckinForm({ member, existing, isoWeek, isoYear, today, weekLabel, token, goals, sharedReviews }: Props) {
   const isUpdate = !!existing;
 
   const [date, setDate] = useState(today);
@@ -186,6 +201,48 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-xl mx-auto px-4 py-10 pb-16">
+
+        {/* Goals section */}
+        {goals && goals.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-6">
+            <h2 className="text-sm font-medium text-gray-700 mb-3">Your goals this cycle</h2>
+            <ul className="space-y-2">
+              {goals.map((goal, i) => (
+                <li key={goal.id} className="flex gap-2 text-sm text-gray-700">
+                  <span className="text-gray-400 shrink-0">{i + 1}.</span>
+                  <span>{goal.body}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Shared reviews inbox */}
+        {sharedReviews && sharedReviews.length > 0 && (
+          <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-6">
+            <h2 className="text-sm font-medium text-gray-700 mb-3">Reviews shared with you</h2>
+            <ul className="space-y-2">
+              {sharedReviews.map((item) => (
+                <li key={item.assignment_id}>
+                  <Link
+                    href={`/review/shared?assignment=${item.assignment_id}&token=${token}`}
+                    className="flex items-center justify-between group rounded-lg border border-gray-100 px-3 py-2.5 hover:border-gray-300 transition-colors"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900 group-hover:text-gray-700">
+                        {item.subjectName}
+                      </p>
+                      <p className="text-xs text-gray-400">{item.cycleName}</p>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400 group-hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Header */}
         <div className="mb-8">

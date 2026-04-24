@@ -9,6 +9,9 @@ import {
   getSubmittedPeerAssignmentsForSubject,
   getResponsesForAssignments,
   getSignoff,
+  getCycleGoals,
+  getCycleQuestions,
+  getActiveTeamMembers,
 } from '@/lib/db';
 import type { ReviewAssignment, ReviewResponse } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
@@ -140,6 +143,10 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
   const signoff = getSignoff(cycleId, subjectToken);
   const isSignedOff = !!signoff?.manager_signed_at;
 
+  const goals = getCycleGoals(cycleId, subjectToken);
+  const questions = getCycleQuestions(cycleId, 'manager');
+  const allMembers = getActiveTeamMembers();
+
   return (
     <ManagerReviewForm
       cycleId={cycleId}
@@ -154,6 +161,9 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
       selfGoals={selfGoals}
       isEditable={managerAssignment.status !== 'submitted' && !isSignedOff}
       isSignedOff={isSignedOff}
+      goals={goals}
+      questions={questions}
+      allMembers={allMembers.map((m) => ({ token: m.token, name: m.name }))}
     />
   );
 }

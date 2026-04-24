@@ -1,10 +1,10 @@
 import { cookies } from 'next/headers';
-import { getMemberByToken } from '@/lib/db';
-import { getCheckin } from '@/lib/db';
+import { getMemberByToken, getCheckin, getCycleGoals, getSharedWithMember, getAllCycles, getCycleAssignments } from '@/lib/db';
 import { getISOWeek, formatWeekLabel } from '@/lib/weeks';
 import { verifySignedToken, COOKIE_NAME } from '@/lib/auth';
 import CheckinForm from './CheckinForm';
 import PasswordGate from './PasswordGate';
+import type { CycleGoal } from '@/lib/db';
 
 // Always render fresh — reads DB and cookies on every request
 export const dynamic = 'force-dynamic';
@@ -50,6 +50,33 @@ export default function CheckinPage({ searchParams }: PageProps) {
   const existing = getCheckin(token, week, year);
   const today = now.toISOString().split('T')[0];
 
+  // Find goals from the most recent active/recent cycle for this member
+  let goals: CycleGoal[] = [];
+  try {
+    const allCycles = getAllCycles();
+    // Find the most recent cycle that has an assignment for this member
+    for (const cycle of allCycles) {
+      const assignments = getCycleAssignments(cycle.id);
+      const hasAssignment = assignments.some(
+        (a) => (a.reviewer_token === token || a.subject_token === token) && a.removed === 0,
+      );
+      if (hasAssignment) {
+        goals = getCycleGoals(cycle.id, token);
+        break;
+      }
+    }
+  } catch {
+    goals = [];
+  }
+
+  // Get reviews shared with this member
+  const sharedItems = getSharedWithMember(token).map((item) => ({
+    assignment_id: item.assignment.id,
+    cycleName: item.cycleName,
+    subjectName: item.subjectName,
+    shared_at: item.share.shared_at,
+  }));
+
   return (
     <CheckinForm
       member={member}
@@ -59,6 +86,8 @@ export default function CheckinPage({ searchParams }: PageProps) {
       today={today}
       weekLabel={formatWeekLabel(week, year)}
       token={token}
+      goals={goals}
+      sharedReviews={sharedItems}
     />
   );
 }

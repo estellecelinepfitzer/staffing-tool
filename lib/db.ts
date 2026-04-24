@@ -2,6 +2,12 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
+import {
+  SELF_REVIEW_QUESTIONS,
+  PEER_REVIEW_QUESTIONS,
+  MANAGER_REVIEW_QUESTIONS,
+  SELF_GOALS_KEY,
+} from './reviewQuestions';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'standup.db');
@@ -170,6 +176,45 @@ function initSchema(db: Database.Database) {
       UNIQUE(cycle_id, subject_token)
     )
   `);
+
+  // ── Cycle goals ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cycle_goals (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      cycle_id      INTEGER NOT NULL REFERENCES review_cycles(id),
+      subject_token TEXT    NOT NULL,
+      body          TEXT    NOT NULL,
+      sort_order    INTEGER NOT NULL DEFAULT 0,
+      created_at    TEXT    NOT NULL
+    )
+  `);
+
+  // ── Cycle questions ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cycle_questions (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      cycle_id      INTEGER NOT NULL REFERENCES review_cycles(id),
+      review_type   TEXT    NOT NULL,
+      question_key  TEXT    NOT NULL,
+      question_text TEXT    NOT NULL,
+      question_type TEXT    NOT NULL DEFAULT 'text',
+      placeholder   TEXT,
+      required      INTEGER NOT NULL DEFAULT 1,
+      sort_order    INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(cycle_id, review_type, question_key)
+    )
+  `);
+
+  // ── Manager review shares ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS manager_review_shares (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      assignment_id    INTEGER NOT NULL REFERENCES review_assignments(id),
+      recipient_token  TEXT    NOT NULL,
+      shared_at        TEXT    NOT NULL,
+      UNIQUE(assignment_id, recipient_token)
+    )
+  `);
   // Migrations — add new columns to existing tables without breaking existing data
   addColumnIfMissing(db, 'checkins', 'working_days',        'REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'checkins', 'sourcing_days',       'REAL NOT NULL DEFAULT 0');
@@ -213,6 +258,13 @@ function initSchema(db: Database.Database) {
   }
   const seededCount = (db.prepare('SELECT COUNT(*) as n FROM team_members').get() as { n: number }).n;
   console.log(`[db] team_members count after seed: ${seededCount}`);
+
+  // Backfill questions for existing cycles that have none
+  const cycles = db.prepare('SELECT id FROM review_cycles').all() as { id: number }[];
+  for (const { id } of cycles) {
+    const count = db.prepare('SELECT COUNT(*) as n FROM cycle_questions WHERE cycle_id=?').get(id) as { n: number };
+    if (count.n === 0) seedQuestionsForCycleWithDb(db, id, null);
+  }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -454,6 +506,11 @@ export function getAllCycles(): ReviewCycle[] {
 
 export function deleteCycle(id: number): void {
   const db = getDb();
+  const deleteShares = db.prepare(`
+    DELETE FROM manager_review_shares WHERE assignment_id IN (
+      SELECT id FROM review_assignments WHERE cycle_id = ?
+    )
+  `);
   const deleteResponses = db.prepare(`
     DELETE FROM review_responses WHERE assignment_id IN (
       SELECT id FROM review_assignments WHERE cycle_id = ?
@@ -461,11 +518,16 @@ export function deleteCycle(id: number): void {
   `);
   const deleteAssignments = db.prepare('DELETE FROM review_assignments WHERE cycle_id = ?');
   const deleteSignoffs = db.prepare('DELETE FROM review_signoffs WHERE cycle_id = ?');
+  const deleteGoals = db.prepare('DELETE FROM cycle_goals WHERE cycle_id = ?');
+  const deleteQuestions = db.prepare('DELETE FROM cycle_questions WHERE cycle_id = ?');
   const deleteCycleStmt = db.prepare('DELETE FROM review_cycles WHERE id = ?');
   db.transaction(() => {
+    deleteShares.run(id);
     deleteResponses.run(id);
     deleteAssignments.run(id);
     deleteSignoffs.run(id);
+    deleteGoals.run(id);
+    deleteQuestions.run(id);
     deleteCycleStmt.run(id);
   })();
 }
@@ -618,4 +680,205 @@ export function getCycleSignoffs(cycleId: number): ReviewSignoff[] {
   return getDb()
     .prepare('SELECT * FROM review_signoffs WHERE cycle_id = ?')
     .all(cycleId) as ReviewSignoff[];
+}
+
+// ─── New types ────────────────────────────────────────────────────────────────
+
+export interface CycleGoal {
+  id: number;
+  cycle_id: number;
+  subject_token: string;
+  body: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface CycleQuestion {
+  id: number;
+  cycle_id: number;
+  review_type: string;
+  question_key: string;
+  question_text: string;
+  question_type: string;
+  placeholder: string | null;
+  required: number;
+  sort_order: number;
+}
+
+export interface ManagerReviewShare {
+  id: number;
+  assignment_id: number;
+  recipient_token: string;
+  shared_at: string;
+}
+
+// ─── Goal queries ─────────────────────────────────────────────────────────────
+
+export function getCycleGoals(cycleId: number, subjectToken: string): CycleGoal[] {
+  return getDb()
+    .prepare('SELECT * FROM cycle_goals WHERE cycle_id = ? AND subject_token = ? ORDER BY sort_order ASC, id ASC')
+    .all(cycleId, subjectToken) as CycleGoal[];
+}
+
+export function getAllGoalsForCycle(cycleId: number): CycleGoal[] {
+  return getDb()
+    .prepare('SELECT * FROM cycle_goals WHERE cycle_id = ? ORDER BY subject_token ASC, sort_order ASC, id ASC')
+    .all(cycleId) as CycleGoal[];
+}
+
+export function createGoal(cycleId: number, subjectToken: string, body: string): number {
+  const result = getDb()
+    .prepare('INSERT INTO cycle_goals (cycle_id, subject_token, body, sort_order, created_at) VALUES (?, ?, ?, 0, ?)')
+    .run(cycleId, subjectToken, body, new Date().toISOString());
+  return result.lastInsertRowid as number;
+}
+
+export function updateGoal(id: number, body: string): void {
+  getDb()
+    .prepare('UPDATE cycle_goals SET body = ? WHERE id = ?')
+    .run(body, id);
+}
+
+export function deleteGoal(id: number): void {
+  getDb()
+    .prepare('DELETE FROM cycle_goals WHERE id = ?')
+    .run(id);
+}
+
+// ─── Question queries ─────────────────────────────────────────────────────────
+
+export function getCycleQuestions(cycleId: number, reviewType: string): CycleQuestion[] {
+  return getDb()
+    .prepare('SELECT * FROM cycle_questions WHERE cycle_id = ? AND review_type = ? ORDER BY sort_order ASC, id ASC')
+    .all(cycleId, reviewType) as CycleQuestion[];
+}
+
+export function createQuestion(data: Omit<CycleQuestion, 'id'>): number {
+  const result = getDb()
+    .prepare(`
+      INSERT INTO cycle_questions (cycle_id, review_type, question_key, question_text, question_type, placeholder, required, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+    .run(data.cycle_id, data.review_type, data.question_key, data.question_text, data.question_type, data.placeholder, data.required, data.sort_order);
+  return result.lastInsertRowid as number;
+}
+
+export function updateQuestion(id: number, data: { question_text?: string; placeholder?: string | null; required?: number }): void {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (data.question_text !== undefined) { fields.push('question_text = ?'); values.push(data.question_text); }
+  if (data.placeholder !== undefined)   { fields.push('placeholder = ?');   values.push(data.placeholder); }
+  if (data.required !== undefined)      { fields.push('required = ?');      values.push(data.required); }
+  if (fields.length === 0) return;
+  values.push(id);
+  getDb().prepare(`UPDATE cycle_questions SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+}
+
+export function deleteQuestion(id: number): void {
+  getDb()
+    .prepare('DELETE FROM cycle_questions WHERE id = ?')
+    .run(id);
+}
+
+/** Internal helper — seeds questions for a cycle using a raw db handle (used during initSchema). */
+function seedQuestionsForCycleWithDb(db: Database.Database, cycleId: number, sourceCycleId: number | null): void {
+  if (sourceCycleId !== null) {
+    // Copy from source cycle
+    const sourceQuestions = db.prepare('SELECT * FROM cycle_questions WHERE cycle_id = ?').all(sourceCycleId) as CycleQuestion[];
+    const insert = db.prepare(`
+      INSERT OR IGNORE INTO cycle_questions (cycle_id, review_type, question_key, question_text, question_type, placeholder, required, sort_order)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    db.transaction(() => {
+      for (const q of sourceQuestions) {
+        insert.run(cycleId, q.review_type, q.question_key, q.question_text, q.question_type, q.placeholder, q.required, q.sort_order);
+      }
+    })();
+    return;
+  }
+
+  // Seed from hardcoded defaults
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO cycle_questions (cycle_id, review_type, question_key, question_text, question_type, placeholder, required, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  db.transaction(() => {
+    // Self-review: prepend the goals key as a special question
+    const selfQuestions = [
+      { key: SELF_GOALS_KEY, text: 'Goals & progress', type: 'text', required: true, placeholder: 'Reflect on your goals and progress over the past year…' },
+      ...SELF_REVIEW_QUESTIONS.map((q) => ({ key: q.key, text: q.text, type: q.type as string, required: q.required, placeholder: q.placeholder ?? null })),
+    ];
+    selfQuestions.forEach((q, i) => {
+      insert.run(cycleId, 'self', q.key, q.text, q.type, q.placeholder ?? null, q.required ? 1 : 0, i);
+    });
+    // Peer review
+    PEER_REVIEW_QUESTIONS.forEach((q, i) => {
+      insert.run(cycleId, 'peer', q.key, q.text, q.type as string, q.placeholder ?? null, q.required ? 1 : 0, i);
+    });
+    // Manager review
+    MANAGER_REVIEW_QUESTIONS.forEach((q, i) => {
+      insert.run(cycleId, 'manager', q.key, q.text, q.type as string, q.placeholder ?? null, q.required ? 1 : 0, i);
+    });
+  })();
+}
+
+/** Public wrapper — seeds questions for a cycle (called when creating a new cycle). */
+export function seedQuestionsForCycle(cycleId: number, sourceCycleId: number | null): void {
+  seedQuestionsForCycleWithDb(getDb(), cycleId, sourceCycleId);
+}
+
+// ─── Share queries ────────────────────────────────────────────────────────────
+
+export function getSharesForAssignment(assignmentId: number): ManagerReviewShare[] {
+  return getDb()
+    .prepare('SELECT * FROM manager_review_shares WHERE assignment_id = ?')
+    .all(assignmentId) as ManagerReviewShare[];
+}
+
+export function getSharedWithMember(recipientToken: string): Array<{
+  share: ManagerReviewShare;
+  assignment: ReviewAssignment;
+  cycleName: string;
+  subjectName: string;
+}> {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT
+      s.id as share_id, s.assignment_id, s.recipient_token, s.shared_at,
+      a.id as a_id, a.cycle_id, a.reviewer_token, a.subject_token, a.type, a.status, a.submitted_at, a.removed,
+      rc.name as cycle_name,
+      tm.name as subject_name
+    FROM manager_review_shares s
+    JOIN review_assignments a ON a.id = s.assignment_id
+    JOIN review_cycles rc ON rc.id = a.cycle_id
+    JOIN team_members tm ON tm.token = a.subject_token
+    WHERE s.recipient_token = ?
+    ORDER BY s.shared_at DESC
+  `).all(recipientToken) as Array<{
+    share_id: number; assignment_id: number; recipient_token: string; shared_at: string;
+    a_id: number; cycle_id: number; reviewer_token: string; subject_token: string; type: string; status: string; submitted_at: string | null; removed: number;
+    cycle_name: string; subject_name: string;
+  }>;
+
+  return rows.map((r) => ({
+    share: { id: r.share_id, assignment_id: r.assignment_id, recipient_token: r.recipient_token, shared_at: r.shared_at },
+    assignment: { id: r.a_id, cycle_id: r.cycle_id, reviewer_token: r.reviewer_token, subject_token: r.subject_token, type: r.type as AssignmentType, status: r.status as AssignmentStatus, submitted_at: r.submitted_at, removed: r.removed },
+    cycleName: r.cycle_name,
+    subjectName: r.subject_name,
+  }));
+}
+
+export function shareManagerReview(assignmentId: number, recipientToken: string): void {
+  getDb()
+    .prepare(`
+      INSERT OR IGNORE INTO manager_review_shares (assignment_id, recipient_token, shared_at)
+      VALUES (?, ?, ?)
+    `)
+    .run(assignmentId, recipientToken, new Date().toISOString());
+}
+
+export function unshareManagerReview(assignmentId: number, recipientToken: string): void {
+  getDb()
+    .prepare('DELETE FROM manager_review_shares WHERE assignment_id = ? AND recipient_token = ?')
+    .run(assignmentId, recipientToken);
 }

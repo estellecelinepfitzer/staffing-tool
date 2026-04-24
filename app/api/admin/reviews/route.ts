@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
-import { createCycle } from '@/lib/db';
+import { createCycle, getAllCycles, seedQuestionsForCycle } from '@/lib/db';
 
 function isAdmin() {
   const c = cookies().get(DASHBOARD_COOKIE_NAME);
@@ -32,6 +32,11 @@ export async function POST(request: NextRequest) {
     manager_due: body.manager_due ?? null,
     created_at: new Date().toISOString(),
   });
+
+  // Find most recent closed cycle to seed questions from
+  const allCycles = getAllCycles();
+  const previousClosed = allCycles.find((c) => c.status === 'closed' && c.id !== id);
+  seedQuestionsForCycle(id, previousClosed?.id ?? null);
 
   return NextResponse.json({ id, ok: true });
 }

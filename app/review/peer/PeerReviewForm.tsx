@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { PEER_REVIEW_QUESTIONS, getPeerReviewHeadline, RATING_LABELS } from '@/lib/reviewQuestions';
+import { getPeerReviewHeadline, RATING_LABELS } from '@/lib/reviewQuestions';
+import type { CycleQuestion } from '@/lib/db';
 
 interface Props {
   cycleId: number;
@@ -12,6 +13,7 @@ interface Props {
   assignmentId: number;
   existingResponses: Record<string, string | number>;
   isEditable: boolean;
+  questions: CycleQuestion[];
 }
 
 export default function PeerReviewForm({
@@ -20,10 +22,16 @@ export default function PeerReviewForm({
   assignmentId,
   existingResponses,
   isEditable,
+  questions,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, string | number>>(() =>
     Object.fromEntries(
-      PEER_REVIEW_QUESTIONS.map((q) => [q.key, existingResponses[q.key] ?? '']),
+      questions.map((q) => [
+        q.question_key,
+        q.question_type === 'rating' && existingResponses[q.question_key] !== undefined
+          ? Number(existingResponses[q.question_key])
+          : existingResponses[q.question_key] ?? '',
+      ]),
     ),
   );
   const [submitted, setSubmitted] = useState(false);
@@ -65,8 +73,8 @@ export default function PeerReviewForm({
     try {
       // Save all text fields
       await Promise.all(
-        PEER_REVIEW_QUESTIONS.filter((q) => q.type === 'text').map((q) =>
-          saveField(q.key, answers[q.key] ?? ''),
+        questions.filter((q) => q.question_type === 'text').map((q) =>
+          saveField(q.question_key, answers[q.question_key] ?? ''),
         ),
       );
       const res = await fetch('/api/review/submit', {
@@ -110,24 +118,24 @@ export default function PeerReviewForm({
         </div>
 
         <div className="space-y-5">
-          {PEER_REVIEW_QUESTIONS.map((q) => (
-            <div key={q.key} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+          {questions.map((q) => (
+            <div key={q.question_key} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
               <label className="block text-sm font-medium text-gray-700 mb-3">
-                {q.text}
-                {q.required && <span className="text-gray-400 ml-1">*</span>}
+                {q.question_text}
+                {q.required === 1 && <span className="text-gray-400 ml-1">*</span>}
               </label>
 
-              {q.type === 'rating' ? (
+              {q.question_type === 'rating' ? (
                 isEditable ? (
                   <div className="flex gap-3 flex-wrap">
                     {[1, 2, 3, 4, 5].map((n) => (
                       <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
                         <input
                           type="radio"
-                          name={q.key}
+                          name={q.question_key}
                           value={n}
-                          checked={answers[q.key] === n}
-                          onChange={() => handleRatingChange(q.key, n)}
+                          checked={answers[q.question_key] === n}
+                          onChange={() => handleRatingChange(q.question_key, n)}
                           className="w-4 h-4 accent-gray-800"
                         />
                         <span className="text-xs text-gray-500 text-center max-w-[80px]">
@@ -138,8 +146,8 @@ export default function PeerReviewForm({
                   </div>
                 ) : (
                   <div className="text-sm text-gray-700">
-                    {answers[q.key]
-                      ? RATING_LABELS[answers[q.key] as number] ?? String(answers[q.key])
+                    {answers[q.question_key]
+                      ? RATING_LABELS[answers[q.question_key] as number] ?? String(answers[q.question_key])
                       : <span className="text-gray-400">No response</span>}
                   </div>
                 )
@@ -148,13 +156,13 @@ export default function PeerReviewForm({
                   rows={4}
                   className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent placeholder-gray-400"
                   placeholder={q.placeholder ?? ''}
-                  value={String(answers[q.key] ?? '')}
-                  onChange={(e) => handleTextChange(q.key, e.target.value)}
-                  onBlur={() => handleTextBlur(q.key)}
+                  value={String(answers[q.question_key] ?? '')}
+                  onChange={(e) => handleTextChange(q.question_key, e.target.value)}
+                  onBlur={() => handleTextBlur(q.question_key)}
                 />
               ) : (
                 <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {answers[q.key] || <span className="text-gray-400">No response</span>}
+                  {answers[q.question_key] || <span className="text-gray-400">No response</span>}
                 </div>
               )}
             </div>

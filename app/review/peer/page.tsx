@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { verifySignedToken, COOKIE_NAME } from '@/lib/auth';
-import { getTeamMember, getCycle, getAssignmentByKey, getResponses } from '@/lib/db';
+import { getTeamMember, getCycle, getAssignmentByKey, getResponses, getCycleQuestions } from '@/lib/db';
 import type { ReviewResponse } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
 import PeerReviewForm from './PeerReviewForm';
@@ -78,6 +78,7 @@ export default async function PeerReviewPage({ searchParams }: PageProps) {
   ) as Record<string, string | number>;
 
   const isEditable = assignment.status !== 'submitted';
+  const questions = getCycleQuestions(cycleId, 'peer');
 
   return (
     <PeerReviewForm
@@ -89,6 +90,7 @@ export default async function PeerReviewPage({ searchParams }: PageProps) {
       assignmentId={assignment.id}
       existingResponses={existingResponses}
       isEditable={isEditable}
+      questions={questions}
     />
   );
 }

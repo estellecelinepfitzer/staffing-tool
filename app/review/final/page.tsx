@@ -6,7 +6,8 @@ import {
   getCycleAssignments,
   getResponses,
   getSignoff,
-  employeeAcknowledge,
+  getCycleGoals,
+  getCycleQuestions,
 } from '@/lib/db';
 import type { ReviewResponse } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
@@ -82,6 +83,8 @@ export default async function FinalReviewPage({ searchParams }: PageProps) {
   ) as Record<string, string | number>;
 
   const acknowledgedAt = signoff?.employee_acknowledged_at ?? null;
+  const goals = getCycleGoals(cycleId, token);
+  const questions = getCycleQuestions(cycleId, 'manager');
 
   return (
     <FinalReviewView
@@ -91,6 +94,8 @@ export default async function FinalReviewPage({ searchParams }: PageProps) {
       subjectName={member.name}
       responses={responseMap}
       acknowledgedAt={acknowledgedAt}
+      goals={goals}
+      questions={questions}
     />
   );
 }
