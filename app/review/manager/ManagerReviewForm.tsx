@@ -168,6 +168,7 @@ function SharePanel({
 
 export default function ManagerReviewForm({
   cycleId,
+  managerToken,
   subjectToken,
   subjectName,
   cycleName,
@@ -283,9 +284,19 @@ export default function ManagerReviewForm({
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{cycleName}</p>
-          <h1 className="text-xl font-semibold text-gray-900">Manager review — {subjectName}</h1>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{cycleName}</p>
+            <h1 className="text-xl font-semibold text-gray-900">Manager review — {subjectName}</h1>
+          </div>
+          <a
+            href={`/review/manager/print?cycle=${cycleId}&token=${managerToken}&subject=${subjectToken}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Download PDF
+          </a>
         </div>
 
         <div className="space-y-4">

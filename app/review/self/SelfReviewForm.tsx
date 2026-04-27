@@ -46,6 +46,7 @@ export default function SelfReviewForm({
   });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   async function saveField(key: string, value: string | number) {
     try {
@@ -79,6 +80,14 @@ export default function SelfReviewForm({
   }
 
   async function handleSubmit() {
+    const missing = questions.filter(
+      (q) => q.required === 1 && q.question_key !== 'goals_progress' && (answers[q.question_key] === '' || answers[q.question_key] === undefined),
+    );
+    if (missing.length > 0) {
+      setValidationError(`Please fill in all required fields (*): ${missing.map((q) => q.question_text).join(', ')}`);
+      return;
+    }
+    setValidationError(null);
     setSubmitting(true);
     try {
       // Save all fields
@@ -271,7 +280,10 @@ export default function SelfReviewForm({
           ))}
 
           {isEditable && (
-            <div className="pt-2 pb-8">
+            <div className="pt-2 pb-8 space-y-3">
+              {validationError && (
+                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{validationError}</p>
+              )}
               <button
                 onClick={handleSubmit}
                 disabled={submitting}

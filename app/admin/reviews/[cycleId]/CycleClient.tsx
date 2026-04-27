@@ -640,7 +640,6 @@ function QuestionsTabPanel({
   const tabs = [
     { key: 'self' as const, label: 'Self' },
     { key: 'peer' as const, label: 'Peer' },
-    { key: 'manager' as const, label: 'Manager' },
   ];
 
   const questionsMap = { self: selfQuestions, peer: peerQuestions, manager: managerQuestions };
@@ -663,6 +662,7 @@ function QuestionsTabPanel({
         ))}
       </div>
       <QuestionsPanel
+        key={tab}
         cycleId={cycleId}
         reviewType={tab}
         initialQuestions={questionsMap[tab]}

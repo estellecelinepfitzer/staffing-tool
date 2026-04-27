@@ -4,7 +4,6 @@ import {
   getTeamMember,
   getAllCycles,
   getAssignmentsForReviewer,
-  getSignoff,
   getCheckin,
 } from '@/lib/db';
 import type { ReviewCycle, ReviewAssignment } from '@/lib/db';
@@ -78,18 +77,13 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
   const cycleData: {
     cycle: ReviewCycle;
     assignments: ReviewAssignment[];
-    signoffManagerSigned: boolean;
   }[] = [];
 
   for (const cycle of allCycles) {
+    if (cycle.status === 'closed') continue; // fix #4: hide closed cycles
     const assignments = getAssignmentsForReviewer(cycle.id, token);
     if (assignments.length === 0) continue;
-    const signoff = getSignoff(cycle.id, token);
-    cycleData.push({
-      cycle,
-      assignments,
-      signoffManagerSigned: !!signoff?.manager_signed_at,
-    });
+    cycleData.push({ cycle, assignments });
   }
 
   return (
@@ -131,26 +125,29 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
         )}
 
         <div className="space-y-4">
-          {cycleData.map(({ cycle, assignments, signoffManagerSigned }) => {
+          {cycleData.map(({ cycle, assignments }) => {
             const selfAssignment = assignments.find(
               (a) => a.type === 'self' && a.reviewer_token === token && a.subject_token === token,
             );
             const peerAssignments = assignments.filter((a) => a.type === 'peer');
+            const managerAssignments = assignments.filter((a) => a.type === 'manager');
 
+            // Show self review during self/peer phase (even if submitted — allow editing)
             const showSelf =
-              (cycle.status === 'self_review_open' ||
-                cycle.status === 'peer_review_open' ||
-                cycle.status === 'manager_review_open' ||
-                cycle.status === 'closed') &&
-              selfAssignment &&
-              selfAssignment.status !== 'submitted';
+              (cycle.status === 'self_review_open' || cycle.status === 'peer_review_open') &&
+              selfAssignment != null;
 
-            const pendingPeers = peerAssignments.filter((a) => a.status === 'pending');
+            // Show all peer assignments during peer phase (even submitted — allow editing)
+            const visiblePeers = cycle.status === 'peer_review_open'
+              ? peerAssignments
+              : peerAssignments.filter((a) => a.status === 'pending');
 
-            const showFinalLink =
-              cycle.status === 'closed' && signoffManagerSigned;
+            // Show manager assignments during manager phase
+            const visibleManagerReviews = cycle.status === 'manager_review_open'
+              ? managerAssignments
+              : [];
 
-            const hasItems = showSelf || pendingPeers.length > 0 || showFinalLink;
+            const hasItems = showSelf || visiblePeers.length > 0 || visibleManagerReviews.length > 0;
 
             return (
               <div key={cycle.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
@@ -170,39 +167,36 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
                         href={`/review/self?cycle=${cycle.id}&token=${token}`}
                         className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 group"
                       >
-                        <span className="w-4 h-4 rounded border border-gray-300 flex-shrink-0 group-hover:border-gray-500" />
+                        <span className={`w-4 h-4 rounded flex-shrink-0 ${selfAssignment?.status === 'submitted' ? 'bg-green-100 border border-green-300' : 'border border-gray-300 group-hover:border-gray-500'}`} />
                         Self-review
-                        <span className="text-gray-400 text-xs ml-auto">Complete &rarr;</span>
+                        <span className="text-gray-400 text-xs ml-auto">
+                          {selfAssignment?.status === 'submitted' ? 'Edit →' : 'Complete →'}
+                        </span>
                       </a>
                     </li>
                   )}
 
-                  {pendingPeers.map((a) => (
+                  {visiblePeers.map((a) => (
                     <li key={a.id}>
                       <PeerAssignmentItem
                         cycleId={cycle.id}
                         token={token}
                         subjectToken={a.subject_token}
+                        isSubmitted={a.status === 'submitted'}
                       />
                     </li>
                   ))}
 
-                  {showFinalLink && (
-                    <li>
-                      <a
-                        href={`/review/final?cycle=${cycle.id}&token=${token}`}
-                        className="flex items-center gap-2 text-sm text-blue-700 hover:text-blue-900"
-                      >
-                        <span className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                          <svg className="w-2.5 h-2.5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        </span>
-                        View your manager review
-                        <span className="text-gray-400 text-xs ml-auto">Read &rarr;</span>
-                      </a>
+                  {visibleManagerReviews.map((a) => (
+                    <li key={a.id}>
+                      <ManagerAssignmentItem
+                        cycleId={cycle.id}
+                        token={token}
+                        subjectToken={a.subject_token}
+                        isSubmitted={a.status === 'submitted'}
+                      />
                     </li>
-                  )}
+                  ))}
                 </ul>
               </div>
             );
@@ -218,10 +212,12 @@ async function PeerAssignmentItem({
   cycleId,
   token,
   subjectToken,
+  isSubmitted,
 }: {
   cycleId: number;
   token: string;
   subjectToken: string;
+  isSubmitted: boolean;
 }) {
   const subject = getTeamMember(subjectToken);
   const subjectName = subject?.name ?? subjectToken;
@@ -231,9 +227,35 @@ async function PeerAssignmentItem({
       href={`/review/peer?cycle=${cycleId}&token=${token}&subject=${subjectToken}`}
       className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 group"
     >
-      <span className="w-4 h-4 rounded border border-gray-300 flex-shrink-0 group-hover:border-gray-500" />
+      <span className={`w-4 h-4 rounded flex-shrink-0 ${isSubmitted ? 'bg-green-100 border border-green-300' : 'border border-gray-300 group-hover:border-gray-500'}`} />
       Peer review — {subjectName}
-      <span className="text-gray-400 text-xs ml-auto">Complete &rarr;</span>
+      <span className="text-gray-400 text-xs ml-auto">{isSubmitted ? 'Edit →' : 'Complete →'}</span>
+    </a>
+  );
+}
+
+async function ManagerAssignmentItem({
+  cycleId,
+  token,
+  subjectToken,
+  isSubmitted,
+}: {
+  cycleId: number;
+  token: string;
+  subjectToken: string;
+  isSubmitted: boolean;
+}) {
+  const subject = getTeamMember(subjectToken);
+  const subjectName = subject?.name ?? subjectToken;
+
+  return (
+    <a
+      href={`/review/manager?cycle=${cycleId}&token=${token}&subject=${subjectToken}`}
+      className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 group"
+    >
+      <span className={`w-4 h-4 rounded flex-shrink-0 ${isSubmitted ? 'bg-green-100 border border-green-300' : 'border border-gray-300 group-hover:border-gray-500'}`} />
+      Manager review — {subjectName}
+      <span className="text-gray-400 text-xs ml-auto">{isSubmitted ? 'Edit →' : 'Complete →'}</span>
     </a>
   );
 }

@@ -77,7 +77,7 @@ export default async function PeerReviewPage({ searchParams }: PageProps) {
     responses.map((r) => [r.question_key, r.answer_text ?? r.answer_number ?? '']),
   ) as Record<string, string | number>;
 
-  const isEditable = assignment.status !== 'submitted';
+  const isEditable = assignment.status !== 'submitted' || cycle.status === 'peer_review_open';
   const questions = getCycleQuestions(cycleId, 'peer');
 
   return (
