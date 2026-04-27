@@ -64,7 +64,7 @@ interface ExistingCheckin {
   portfolio_other_days: number;
 }
 
-interface CycleGoal {
+interface MemberGoal {
   id: number;
   body: string;
 }
@@ -84,7 +84,7 @@ interface Props {
   today: string;
   weekLabel: string;
   token: string;
-  goals?: CycleGoal[];
+  goals?: MemberGoal[];
   sharedReviews?: SharedReviewItem[];
 }
 
@@ -299,13 +299,33 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
           {/* Deal stages */}
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="px-5 pt-4 pb-2 border-b border-gray-100">
-              <h2 className="text-sm font-medium text-gray-700">Deal Pipeline</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-medium text-gray-700">Deal Pipeline</h2>
+                {workingDays > 0 && (() => {
+                  const totalAllocated = Object.values(dayFields).reduce((a, b) => a + b, 0);
+                  const remaining = workingDays - totalAllocated;
+                  return (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      remaining === 0
+                        ? 'text-red-700 bg-red-50 border border-red-200'
+                        : remaining <= 0.5
+                        ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                        : 'text-gray-500'
+                    }`}>
+                      {remaining}d remaining
+                    </span>
+                  );
+                })()}
+              </div>
               <p className="text-xs text-gray-400 mt-0.5">Notes optional — days default to 0</p>
             </div>
             <div className="divide-y divide-gray-100">
               {DEAL_FIELDS.map(({ key, label, sub }) => {
                 const dayKey: DayKey = `${key}_days`;
-                const opts = dayOptions(workingDays);
+                const totalAllocated = Object.values(dayFields).reduce((a, b) => a + b, 0);
+                const remaining = workingDays - totalAllocated;
+                const maxForBucket = Math.min(dayFields[dayKey] + remaining, workingDays);
+                const opts = dayOptions(maxForBucket);
                 return (
                   <div key={key} className="px-5 py-4">
                     <div className="flex items-start justify-between gap-4 mb-1.5">

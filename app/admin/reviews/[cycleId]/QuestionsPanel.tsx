@@ -15,6 +15,7 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
   const [error, setError] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
   const [newText, setNewText] = useState('');
+  const [newType, setNewType] = useState<'text' | 'rating'>('text');
   const [savingNew, setSavingNew] = useState(false);
 
   async function handleUpdateQuestion(id: number, question_text: string) {
@@ -47,7 +48,7 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
       const res = await fetch(`/api/admin/reviews/${cycleId}/questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ review_type: reviewType, question_text: newText.trim() }),
+        body: JSON.stringify({ review_type: reviewType, question_text: newText.trim(), question_type: newType }),
       });
       if (!res.ok) throw new Error('Failed');
       const data = await res.json() as { id: number };
@@ -57,13 +58,14 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
         review_type: reviewType,
         question_key: `custom_${data.id}`,
         question_text: newText.trim(),
-        question_type: 'text',
+        question_type: newType,
         placeholder: null,
         required: 1,
         sort_order: 999,
       };
       setQuestions((prev) => [...prev, newQ]);
       setNewText('');
+      setNewType('text');
       setAddingNew(false);
     } catch {
       setError('Failed to add question');
@@ -100,14 +102,40 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
         <>
           {addingNew ? (
             <div className="flex gap-2 items-start pt-1">
-              <textarea
-                autoFocus
-                rows={2}
-                value={newText}
-                onChange={(e) => setNewText(e.target.value)}
-                placeholder="Enter question text…"
-                className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800"
-              />
+              <div className="flex-1 space-y-2">
+                <textarea
+                  autoFocus
+                  rows={2}
+                  value={newText}
+                  onChange={(e) => setNewText(e.target.value)}
+                  placeholder="Enter question text…"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800"
+                />
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600">
+                    <input
+                      type="radio"
+                      name="newQuestionType"
+                      value="text"
+                      checked={newType === 'text'}
+                      onChange={() => setNewType('text')}
+                      className="h-3.5 w-3.5"
+                    />
+                    Question (text)
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600">
+                    <input
+                      type="radio"
+                      name="newQuestionType"
+                      value="rating"
+                      checked={newType === 'rating'}
+                      onChange={() => setNewType('rating')}
+                      className="h-3.5 w-3.5"
+                    />
+                    Rating (1–5)
+                  </label>
+                </div>
+              </div>
               <div className="flex flex-col gap-1.5">
                 <button
                   onClick={handleAddQuestion}
@@ -117,7 +145,7 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
                   {savingNew ? '…' : 'Add'}
                 </button>
                 <button
-                  onClick={() => { setAddingNew(false); setNewText(''); }}
+                  onClick={() => { setAddingNew(false); setNewText(''); setNewType('text'); }}
                   className="text-xs text-gray-400 hover:text-gray-600"
                 >
                   Cancel

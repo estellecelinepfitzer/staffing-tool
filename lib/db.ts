@@ -189,6 +189,17 @@ function initSchema(db: Database.Database) {
     )
   `);
 
+  // ── Member goals (per-person, not per-cycle) ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS member_goals (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      member_token  TEXT NOT NULL,
+      body          TEXT NOT NULL,
+      sort_order    INTEGER NOT NULL DEFAULT 0,
+      created_at    TEXT NOT NULL
+    )
+  `);
+
   // ── Cycle questions ──
   db.exec(`
     CREATE TABLE IF NOT EXISTS cycle_questions (
@@ -225,6 +236,7 @@ function initSchema(db: Database.Database) {
   addColumnIfMissing(db, 'team_members', 'checkin', 'INTEGER NOT NULL DEFAULT 1');
   addColumnIfMissing(db, 'team_members', 'password', 'TEXT NOT NULL DEFAULT ""');
   addColumnIfMissing(db, 'team_members', 'manager_token', 'TEXT NOT NULL DEFAULT ""');
+  addColumnIfMissing(db, 'review_signoffs', 'released_at', 'TEXT');
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS passwords (
@@ -321,6 +333,7 @@ export interface ReviewSignoff {
   subject_token: string;
   manager_signed_at: string | null;
   employee_acknowledged_at: string | null;
+  released_at: string | null;
 }
 
 // ─── Checkin queries ──────────────────────────────────────────────────────────
@@ -651,6 +664,13 @@ export function employeeAcknowledge(cycleId: number, subjectToken: string): void
     .run(new Date().toISOString(), cycleId, subjectToken);
 }
 
+export function releaseManagerReview(cycleId: number, subjectToken: string): void {
+  ensureSignoff(cycleId, subjectToken);
+  getDb()
+    .prepare('UPDATE review_signoffs SET released_at = ? WHERE cycle_id = ? AND subject_token = ?')
+    .run(new Date().toISOString(), cycleId, subjectToken);
+}
+
 export function getCycleSignoffs(cycleId: number): ReviewSignoff[] {
   return getDb()
     .prepare('SELECT * FROM review_signoffs WHERE cycle_id = ?')
@@ -658,6 +678,14 @@ export function getCycleSignoffs(cycleId: number): ReviewSignoff[] {
 }
 
 // ─── New types ────────────────────────────────────────────────────────────────
+
+export interface MemberGoal {
+  id: number;
+  member_token: string;
+  body: string;
+  sort_order: number;
+  created_at: string;
+}
 
 export interface CycleGoal {
   id: number;
@@ -717,6 +745,33 @@ export function updateGoal(id: number, body: string): void {
 export function deleteGoal(id: number): void {
   getDb()
     .prepare('DELETE FROM cycle_goals WHERE id = ?')
+    .run(id);
+}
+
+// ─── Member goal queries (per-person goals, not per-cycle) ─────────────────────
+
+export function getMemberGoals(memberToken: string): MemberGoal[] {
+  return getDb()
+    .prepare('SELECT * FROM member_goals WHERE member_token = ? ORDER BY sort_order ASC, id ASC')
+    .all(memberToken) as MemberGoal[];
+}
+
+export function addMemberGoal(memberToken: string, body: string): number {
+  const result = getDb()
+    .prepare('INSERT INTO member_goals (member_token, body, sort_order, created_at) VALUES (?, ?, 0, ?)')
+    .run(memberToken, body, new Date().toISOString());
+  return result.lastInsertRowid as number;
+}
+
+export function updateMemberGoal(id: number, body: string): void {
+  getDb()
+    .prepare('UPDATE member_goals SET body = ? WHERE id = ?')
+    .run(body, id);
+}
+
+export function deleteMemberGoal(id: number): void {
+  getDb()
+    .prepare('DELETE FROM member_goals WHERE id = ?')
     .run(id);
 }
 

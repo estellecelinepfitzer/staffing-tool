@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { TeamMemberRow, ReviewCycle } from '@/lib/db';
 
-interface CycleGoal { id: number; cycle_id: number; subject_token: string; body: string; sort_order: number; created_at: string; }
+interface MemberGoal { id: number; member_token: string; body: string; sort_order: number; created_at: string; }
 
 interface Props {
   members: TeamMemberRow[];
@@ -28,18 +28,17 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
 
   // Goals state
   const [goalsOpenFor, setGoalsOpenFor] = useState<string | null>(null);
-  const [selectedCycleId, setSelectedCycleId] = useState<number | null>(cycles[0]?.id ?? null);
-  const [goalsByMember, setGoalsByMember] = useState<Record<string, CycleGoal[]>>({});
+  const [goalsByMember, setGoalsByMember] = useState<Record<string, MemberGoal[]>>({});
   const [goalsLoading, setGoalsLoading] = useState<Record<string, boolean>>({});
   const [newGoalText, setNewGoalText] = useState('');
   const [savingGoal, setSavingGoal] = useState(false);
 
-  const loadGoals = useCallback(async (token: string, cycleId: number) => {
+  const loadGoals = useCallback(async (token: string) => {
     setGoalsLoading((p) => ({ ...p, [token]: true }));
     try {
-      const res = await fetch(`/api/admin/reviews/${cycleId}/goals?subject=${token}`);
-      const data = await res.json() as { goals: CycleGoal[] };
-      setGoalsByMember((p) => ({ ...p, [`${cycleId}:${token}`]: data.goals }));
+      const res = await fetch(`/api/admin/members/${token}/goals`);
+      const data = await res.json() as { goals: MemberGoal[] };
+      setGoalsByMember((p) => ({ ...p, [token]: data.goals }));
     } finally {
       setGoalsLoading((p) => ({ ...p, [token]: false }));
     }
@@ -50,23 +49,22 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
       setGoalsOpenFor(null);
     } else {
       setGoalsOpenFor(token);
-      if (selectedCycleId) loadGoals(token, selectedCycleId);
+      loadGoals(token);
     }
   }
 
   async function handleAddGoal(token: string) {
-    if (!newGoalText.trim() || !selectedCycleId) return;
+    if (!newGoalText.trim()) return;
     setSavingGoal(true);
     try {
-      const res = await fetch(`/api/admin/reviews/${selectedCycleId}/goals`, {
+      const res = await fetch(`/api/admin/members/${token}/goals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subject_token: token, body: newGoalText.trim() }),
+        body: JSON.stringify({ body: newGoalText.trim() }),
       });
       const data = await res.json() as { id: number };
-      const newGoal: CycleGoal = { id: data.id, cycle_id: selectedCycleId, subject_token: token, body: newGoalText.trim(), sort_order: 0, created_at: new Date().toISOString() };
-      const key = `${selectedCycleId}:${token}`;
-      setGoalsByMember((p) => ({ ...p, [key]: [...(p[key] ?? []), newGoal] }));
+      const newGoal: MemberGoal = { id: data.id, member_token: token, body: newGoalText.trim(), sort_order: 0, created_at: new Date().toISOString() };
+      setGoalsByMember((p) => ({ ...p, [token]: [...(p[token] ?? []), newGoal] }));
       setNewGoalText('');
     } finally {
       setSavingGoal(false);
@@ -74,21 +72,17 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
   }
 
   async function handleUpdateGoal(token: string, goalId: number, body: string) {
-    if (!selectedCycleId) return;
-    await fetch(`/api/admin/reviews/${selectedCycleId}/goals/${goalId}`, {
+    await fetch(`/api/admin/members/${token}/goals/${goalId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ body }),
     });
-    const key = `${selectedCycleId}:${token}`;
-    setGoalsByMember((p) => ({ ...p, [key]: (p[key] ?? []).map((g) => g.id === goalId ? { ...g, body } : g) }));
+    setGoalsByMember((p) => ({ ...p, [token]: (p[token] ?? []).map((g) => g.id === goalId ? { ...g, body } : g) }));
   }
 
   async function handleDeleteGoal(token: string, goalId: number) {
-    if (!selectedCycleId) return;
-    await fetch(`/api/admin/reviews/${selectedCycleId}/goals/${goalId}`, { method: 'DELETE' });
-    const key = `${selectedCycleId}:${token}`;
-    setGoalsByMember((p) => ({ ...p, [key]: (p[key] ?? []).filter((g) => g.id !== goalId) }));
+    await fetch(`/api/admin/members/${token}/goals/${goalId}`, { method: 'DELETE' });
+    setGoalsByMember((p) => ({ ...p, [token]: (p[token] ?? []).filter((g) => g.id !== goalId) }));
   }
 
   // Add member form state
@@ -274,8 +268,7 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
               {members.map((member, idx) => {
                 const isActive = !!member.active;
                 const isGoalsOpen = goalsOpenFor === member.token;
-                const goalsKey = `${selectedCycleId}:${member.token}`;
-                const goals = goalsByMember[goalsKey] ?? [];
+                const goals = goalsByMember[member.token] ?? [];
                 return (
                   <>
                   <tr
@@ -318,16 +311,12 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
 
                     {/* Goals */}
                     <td className="px-4 py-3">
-                      {cycles.length === 0 ? (
-                        <span className="text-xs text-gray-300">No cycles</span>
-                      ) : (
-                        <button
-                          onClick={() => toggleGoals(member.token)}
-                          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${isGoalsOpen ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                        >
-                          Goals {goalsLoading[member.token] ? '…' : goals.length > 0 ? `(${goals.length})` : ''}
-                        </button>
-                      )}
+                      <button
+                        onClick={() => toggleGoals(member.token)}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${isGoalsOpen ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                      >
+                        Goals {goalsLoading[member.token] ? '…' : goals.length > 0 ? `(${goals.length})` : ''}
+                      </button>
                     </td>
 
                     {/* Check-in toggle */}
@@ -425,33 +414,10 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                     </td>
                   </tr>
                   {/* Goals inline panel */}
-                  {isGoalsOpen && selectedCycleId && (
+                  {isGoalsOpen && (
                     <tr key={`${member.token}-goals`} className="border-b border-gray-100 bg-blue-50/30">
                       <td colSpan={8} className="px-4 py-4">
                         <div className="max-w-2xl">
-                          {/* Cycle selector */}
-                          {cycles.length > 1 && (
-                            <div className="flex items-center gap-2 mb-3">
-                              <label className="text-xs text-gray-500 shrink-0">Cycle:</label>
-                              <select
-                                className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800"
-                                value={selectedCycleId}
-                                onChange={(e) => {
-                                  const id = Number(e.target.value);
-                                  setSelectedCycleId(id);
-                                  loadGoals(member.token, id);
-                                }}
-                              >
-                                {cycles.map((c) => (
-                                  <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
-                          {cycles.length === 1 && (
-                            <p className="text-xs text-gray-400 mb-3">Cycle: <span className="text-gray-600 font-medium">{cycles[0].name}</span></p>
-                          )}
-
                           {/* Goal list */}
                           <div className="space-y-2 mb-3">
                             {goals.length === 0 && !goalsLoading[member.token] && (
@@ -559,7 +525,7 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
   );
 }
 
-function GoalEditRow({ goal, onSave, onDelete }: { goal: CycleGoal; onSave: (body: string) => void; onDelete: () => void }) {
+function GoalEditRow({ goal, onSave, onDelete }: { goal: MemberGoal; onSave: (body: string) => void; onDelete: () => void }) {
   const [text, setText] = useState(goal.body);
   const saved = useState(goal.body)[0];
   return (

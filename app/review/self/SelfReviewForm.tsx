@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { SELF_REVIEW_HEADLINE, SELF_GOALS_KEY, RATING_LABELS } from '@/lib/reviewQuestions';
-import type { CycleQuestion, CycleGoal } from '@/lib/db';
+import type { CycleQuestion, MemberGoal } from '@/lib/db';
 
 interface Props {
   cycleId: number;
@@ -12,7 +12,7 @@ interface Props {
   existingResponses: Record<string, string>;
   isEditable: boolean;
   questions: CycleQuestion[];
-  goals: CycleGoal[];
+  goals: MemberGoal[];
 }
 
 export default function SelfReviewForm({

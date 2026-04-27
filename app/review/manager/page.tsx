@@ -9,7 +9,7 @@ import {
   getSubmittedPeerAssignmentsForSubject,
   getResponsesForAssignments,
   getSignoff,
-  getCycleGoals,
+  getMemberGoals,
   getCycleQuestions,
   getActiveTeamMembers,
 } from '@/lib/db';
@@ -142,9 +142,11 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
 
   const signoff = getSignoff(cycleId, subjectToken);
   const isSignedOff = !!signoff?.manager_signed_at;
+  const isReleased = !!signoff?.released_at;
 
-  const goals = getCycleGoals(cycleId, subjectToken);
+  const goals = getMemberGoals(subjectToken);
   const questions = getCycleQuestions(cycleId, 'manager');
+  const selfQuestions = getCycleQuestions(cycleId, 'self');
   const allMembers = getActiveTeamMembers();
 
   return (
@@ -161,8 +163,10 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
       selfGoals={selfGoals}
       isEditable={managerAssignment.status !== 'submitted' && !isSignedOff}
       isSignedOff={isSignedOff}
+      isReleased={isReleased}
       goals={goals}
       questions={questions}
+      selfQuestions={selfQuestions}
       allMembers={allMembers.map((m) => ({ token: m.token, name: m.name }))}
     />
   );

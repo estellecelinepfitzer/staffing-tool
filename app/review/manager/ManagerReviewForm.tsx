@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { RATING_LABELS } from '@/lib/reviewQuestions';
-import type { CycleQuestion, CycleGoal, TeamMemberRow } from '@/lib/db';
+import type { CycleQuestion, MemberGoal, TeamMemberRow } from '@/lib/db';
 
 interface PeerReview {
   label: string;
@@ -22,8 +22,10 @@ interface Props {
   selfGoals: string;
   isEditable: boolean;
   isSignedOff: boolean;
+  isReleased: boolean;
   questions: CycleQuestion[];
-  goals: CycleGoal[];
+  selfQuestions: CycleQuestion[];
+  goals: MemberGoal[];
   allMembers: { token: string; name: string }[];
 }
 
@@ -178,7 +180,9 @@ export default function ManagerReviewForm({
   peerReviews,
   isEditable,
   isSignedOff,
+  isReleased: isReleasedProp,
   questions,
+  selfQuestions,
   goals,
   allMembers,
 }: Props) {
@@ -201,6 +205,8 @@ export default function ManagerReviewForm({
   });
   const [submitting, setSubmitting] = useState(false);
   const [signedOff, setSignedOff] = useState(isSignedOff);
+  const [released, setReleased] = useState(isReleasedProp);
+  const [releasing, setReleasing] = useState(false);
 
   async function saveField(key: string, value: string | number) {
     try {
@@ -265,6 +271,24 @@ export default function ManagerReviewForm({
     }
   }
 
+  async function handleRelease() {
+    setReleasing(true);
+    try {
+      const res = await fetch('/api/review/release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cycle_id: cycleId, subject_token: subjectToken }),
+      });
+      if (res.ok) {
+        setReleased(true);
+      }
+    } catch {
+      // silent failure
+    } finally {
+      setReleasing(false);
+    }
+  }
+
   if (signedOff && !isEditable) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6">
@@ -303,9 +327,30 @@ export default function ManagerReviewForm({
           {/* Self-review collapsible */}
           <Collapsible title="Self-review">
             <div className="space-y-4">
-              {Object.entries(selfReviewResponses).map(([key, val]) => (
-                <ReadOnlyField key={key} label={key} value={val} />
-              ))}
+              {selfQuestions.length > 0
+                ? selfQuestions.map((q) => {
+                    const val = selfReviewResponses[q.question_key];
+                    return (
+                      <div key={q.question_key} className="mb-4 last:mb-0">
+                        <p className="text-xs font-medium text-gray-500 mb-1">{q.question_text}</p>
+                        {q.question_type === 'rating' ? (
+                          val !== undefined && val !== ''
+                            ? <span className="text-sm text-gray-800">{RATING_LABELS[Number(val)] ?? val}</span>
+                            : <span className="text-sm text-gray-400">No response</span>
+                        ) : (
+                          <div className="text-sm text-gray-800 whitespace-pre-wrap">
+                            {val !== undefined && val !== ''
+                              ? val
+                              : <span className="text-gray-400">No response</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                : Object.entries(selfReviewResponses).map(([key, val]) => (
+                    <ReadOnlyField key={key} label={key} value={val} />
+                  ))
+              }
             </div>
           </Collapsible>
 
@@ -459,6 +504,29 @@ export default function ManagerReviewForm({
           {signedOff && (
             <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-4 text-sm text-green-800">
               Review signed off. The employee has been notified.
+            </div>
+          )}
+
+          {/* Release to employee */}
+          {signedOff && (
+            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+              {released ? (
+                <p className="text-sm text-green-700 font-medium">Review released to employee.</p>
+              ) : (
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Release to employee</p>
+                    <p className="text-xs text-gray-400 mt-0.5">The employee will be able to view a PDF of this review.</p>
+                  </div>
+                  <button
+                    onClick={handleRelease}
+                    disabled={releasing}
+                    className="shrink-0 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  >
+                    {releasing ? 'Releasing…' : 'Release'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

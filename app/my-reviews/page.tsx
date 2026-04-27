@@ -5,6 +5,7 @@ import {
   getAllCycles,
   getAssignmentsForReviewer,
   getCheckin,
+  getSignoff,
 } from '@/lib/db';
 import type { ReviewCycle, ReviewAssignment } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
@@ -77,13 +78,16 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
   const cycleData: {
     cycle: ReviewCycle;
     assignments: ReviewAssignment[];
+    isReleased: boolean;
   }[] = [];
 
   for (const cycle of allCycles) {
-    if (cycle.status === 'closed') continue; // fix #4: hide closed cycles
+    const signoff = getSignoff(cycle.id, token);
+    const isReleased = !!signoff?.released_at;
+    if (cycle.status === 'closed' && !isReleased) continue; // hide closed cycles unless review released
     const assignments = getAssignmentsForReviewer(cycle.id, token);
-    if (assignments.length === 0) continue;
-    cycleData.push({ cycle, assignments });
+    if (assignments.length === 0 && !isReleased) continue;
+    cycleData.push({ cycle, assignments, isReleased });
   }
 
   return (
@@ -125,7 +129,7 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
         )}
 
         <div className="space-y-4">
-          {cycleData.map(({ cycle, assignments }) => {
+          {cycleData.map(({ cycle, assignments, isReleased }) => {
             const selfAssignment = assignments.find(
               (a) => a.type === 'self' && a.reviewer_token === token && a.subject_token === token,
             );
@@ -147,7 +151,7 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
               ? managerAssignments
               : [];
 
-            const hasItems = showSelf || visiblePeers.length > 0 || visibleManagerReviews.length > 0;
+            const hasItems = showSelf || visiblePeers.length > 0 || visibleManagerReviews.length > 0 || isReleased;
 
             return (
               <div key={cycle.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
@@ -197,6 +201,19 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
                       />
                     </li>
                   ))}
+
+                  {isReleased && (
+                    <li>
+                      <a
+                        href={`/review/manager/employee-view?cycle=${cycle.id}&token=${token}`}
+                        className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 group"
+                      >
+                        <span className="w-4 h-4 rounded flex-shrink-0 bg-blue-100 border border-blue-300" />
+                        View manager review PDF
+                        <span className="text-gray-400 text-xs ml-auto">Open →</span>
+                      </a>
+                    </li>
+                  )}
                 </ul>
               </div>
             );

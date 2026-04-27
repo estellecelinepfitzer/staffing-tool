@@ -16,10 +16,10 @@ import {
 } from '@/lib/db';
 import type { ReviewAssignment, ReviewResponse } from '@/lib/db';
 import { RATING_LABELS } from '@/lib/reviewQuestions';
-import PrintButton from './PrintButton';
+import PasswordGate from '@/app/checkin/PasswordGate';
 
 interface PageProps {
-  searchParams: { cycle?: string; token?: string; subject?: string };
+  searchParams: { cycle?: string; token?: string };
 }
 
 function responsesToMap(responses: ReviewResponse[]): Record<string, string | number> {
@@ -34,42 +34,55 @@ function peerLabel(cycleId: number, subjectToken: string, reviewerToken: string)
     .digest('hex');
 }
 
-export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
+export default function EmployeeReviewViewPage({ searchParams }: PageProps) {
   const token = searchParams.token?.trim();
   const cycleIdStr = searchParams.cycle?.trim();
-  const subjectToken = searchParams.subject?.trim();
 
-  if (!token || !cycleIdStr || !subjectToken) {
+  if (!token || !cycleIdStr) {
     return <p>Missing parameters.</p>;
   }
 
   const cycleId = parseInt(cycleIdStr, 10);
   if (isNaN(cycleId)) return <p>Invalid cycle.</p>;
 
-  const manager = getTeamMember(token);
-  if (!manager) return <p>Manager not found.</p>;
+  const subject = getTeamMember(token);
+  if (!subject) return <p>Member not found.</p>;
 
   const cookieStore = cookies();
   const session = cookieStore.get(COOKIE_NAME);
   const authenticatedToken = session ? verifySignedToken(session.value) : null;
-  if (authenticatedToken !== token) return <p>Not authenticated.</p>;
 
-  const subject = getTeamMember(subjectToken);
-  if (!subject || subject.manager_token !== token) return <p>Access denied.</p>;
+  if (authenticatedToken !== token) {
+    return <PasswordGate token={token} memberName={subject.name} />;
+  }
+
+  const signoff = getSignoff(cycleId, token);
+  if (!signoff?.released_at) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <h1 className="text-lg font-semibold text-gray-900 mb-1">Not yet available</h1>
+          <p className="text-sm text-gray-500">Your manager review has not been released yet.</p>
+        </div>
+      </div>
+    );
+  }
 
   const cycle = getCycle(cycleId);
   if (!cycle) return <p>Cycle not found.</p>;
 
-  const managerAssignment = getAssignmentByKey(cycleId, token, subjectToken, 'manager');
+  const manager = getTeamMember(subject.manager_token);
+  if (!manager) return <p>Manager not found.</p>;
+
+  const managerAssignment = getAssignmentByKey(cycleId, subject.manager_token, token, 'manager');
   if (!managerAssignment) return <p>Assignment not found.</p>;
 
   const managerResponses = responsesToMap(getResponses(managerAssignment.id));
-  const goals = getMemberGoals(subjectToken);
+  const goals = getMemberGoals(token);
   const questions = getCycleQuestions(cycleId, 'manager');
-  const signoff = getSignoff(cycleId, subjectToken);
 
   // Peer reviews — aggregate ratings only
-  const peerAssignments: ReviewAssignment[] = getSubmittedPeerAssignmentsForSubject(cycleId, subjectToken);
+  const peerAssignments: ReviewAssignment[] = getSubmittedPeerAssignmentsForSubject(cycleId, token);
   const peerResponseRows = getResponsesForAssignments(peerAssignments.map((a) => a.id));
   const byAssignment = new Map<number, ReviewResponse[]>();
   for (const row of peerResponseRows) {
@@ -77,8 +90,8 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
     byAssignment.get(row.assignment_id)!.push(row);
   }
   const sorted = [...peerAssignments].sort((a, b) =>
-    peerLabel(cycleId, subjectToken, a.reviewer_token).localeCompare(
-      peerLabel(cycleId, subjectToken, b.reviewer_token),
+    peerLabel(cycleId, token, a.reviewer_token).localeCompare(
+      peerLabel(cycleId, token, b.reviewer_token),
     ),
   );
   const peerResponseMaps = sorted.map((a) =>
@@ -108,9 +121,7 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: #111; background: white; padding: 40px; max-width: 760px; margin: 0 auto; }
           h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
           h2 { font-size: 14px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin: 24px 0 12px; }
-          h3 { font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 8px; }
           .meta { color: #6b7280; font-size: 12px; margin-bottom: 24px; }
-          .section { margin-bottom: 20px; }
           .field { margin-bottom: 14px; }
           .label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
           .value { color: #111; line-height: 1.5; }
@@ -120,6 +131,7 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
           .peer-table { width: 100%; border-collapse: collapse; font-size: 12px; }
           .peer-table th { text-align: left; font-weight: 600; color: #6b7280; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
           .peer-table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
+          .print-btn { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #111; color: white; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
           @media print {
             .no-print { display: none !important; }
             body { padding: 20px; }
@@ -127,7 +139,7 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
         `}</style>
       </head>
       <body>
-        <PrintButton />
+        <button className="print-btn no-print" onClick={() => window.print()}>Print / Save PDF</button>
 
         <h1>Manager Review — {subject.name}</h1>
         <p className="meta">

@@ -184,7 +184,11 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
         throw new Error(d.error ?? 'Failed to update phase');
       }
       setCycle((c) => ({ ...c, status }));
-      router.refresh();
+      if (status === 'closed') {
+        router.push('/admin');
+      } else {
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update phase');
     } finally {
