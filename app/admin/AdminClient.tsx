@@ -261,7 +261,7 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-full mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
