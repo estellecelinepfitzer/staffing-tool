@@ -5,7 +5,7 @@ import { getTeamMember, getAssignment, submitAssignment, managerSignOff, getCycl
 import { sendReviewAvailable } from '@/lib/email';
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL ?? 'https://staffing-tool-production-b3d1.up.railway.app';
+  process.env.NEXT_PUBLIC_BASE_URL ?? 'https://staffing-tool.up.railway.app';
 
 export async function POST(req: NextRequest) {
   const cookieStore = cookies();

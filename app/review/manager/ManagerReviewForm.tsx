@@ -515,15 +515,15 @@ export default function ManagerReviewForm({
               ) : (
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">Release to employee</p>
-                    <p className="text-xs text-gray-400 mt-0.5">The employee will be able to view a PDF of this review.</p>
+                    <p className="text-sm font-medium text-gray-700">Release to {subjectName}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">They will be able to view a PDF of this review.</p>
                   </div>
                   <button
                     onClick={handleRelease}
                     disabled={releasing}
                     className="shrink-0 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
                   >
-                    {releasing ? 'Releasing…' : 'Release'}
+                    {releasing ? 'Releasing…' : `Release to ${subjectName.split(' ')[0]}`}
                   </button>
                 </div>
               )}

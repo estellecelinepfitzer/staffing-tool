@@ -6,6 +6,7 @@ import {
   getAssignmentsForReviewer,
   getCheckin,
   getSignoff,
+  getMemberGoals,
 } from '@/lib/db';
 import type { ReviewCycle, ReviewAssignment } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
@@ -65,13 +66,15 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
   }
 
   const firstName = member.name.split(' ')[0];
+  const hasCheckin = member.checkin === 1;
   const allCycles = getAllCycles();
+  const goals = getMemberGoals(token);
 
-  // Check-in for current week
+  // Check-in for current week (only if checkin enabled)
   const now = new Date();
   const { week: currentWeek, year: currentYear } = getISOWeek(now);
   const weekLabel = formatWeekLabel(currentWeek, currentYear);
-  const existingCheckin = getCheckin(token, currentWeek, currentYear);
+  const existingCheckin = hasCheckin ? getCheckin(token, currentWeek, currentYear) : null;
   const checkinHref = `/checkin?token=${token}`;
 
   // Build per-cycle data
@@ -95,28 +98,59 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
       <div className="max-w-2xl mx-auto">
         <h1 className="text-xl font-semibold text-gray-900 mb-6">Hi, {firstName}</h1>
 
-        {/* Weekly staffing section */}
-        <div className="mb-6">
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Weekly staffing</h2>
-          <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-900">{weekLabel}</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {existingCheckin ? 'Check-in submitted' : 'Not submitted yet'}
-              </p>
+        {/* Weekly staffing section — only for checkin-enabled members */}
+        {hasCheckin && (
+          <div className="mb-6">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Weekly staffing</h2>
+            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">{weekLabel}</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {existingCheckin ? 'Check-in submitted' : 'Not submitted yet'}
+                </p>
+              </div>
+              <a
+                href={checkinHref}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  existingCheckin
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-900 text-white hover:bg-gray-700'
+                }`}
+              >
+                {existingCheckin ? 'Edit' : 'Fill in'}
+              </a>
             </div>
+          </div>
+        )}
+
+        {/* Goals section */}
+        {goals.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">My goals</h2>
+            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+              <ul className="space-y-2">
+                {goals.map((goal) => (
+                  <li key={goal.id} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+                    {goal.body}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Dashboard link — only for checkin-enabled members */}
+        {hasCheckin && (
+          <div className="mb-6">
             <a
-              href={checkinHref}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                existingCheckin
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  : 'bg-gray-900 text-white hover:bg-gray-700'
-              }`}
+              href="/dashboard"
+              className="block w-full text-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
-              {existingCheckin ? 'Edit' : 'Fill in'}
+              View team dashboard →
             </a>
           </div>
-        </div>
+        )}
 
         {/* Reviews section */}
         <div>

@@ -17,6 +17,7 @@ import {
 import type { ReviewAssignment, ReviewResponse } from '@/lib/db';
 import { RATING_LABELS } from '@/lib/reviewQuestions';
 import PasswordGate from '@/app/checkin/PasswordGate';
+import PrintButton from '../print/PrintButton';
 
 interface PageProps {
   searchParams: { cycle?: string; token?: string };
@@ -131,7 +132,6 @@ export default function EmployeeReviewViewPage({ searchParams }: PageProps) {
           .peer-table { width: 100%; border-collapse: collapse; font-size: 12px; }
           .peer-table th { text-align: left; font-weight: 600; color: #6b7280; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
           .peer-table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
-          .print-btn { display: inline-block; margin-bottom: 20px; padding: 8px 16px; background: #111; color: white; border: none; border-radius: 8px; font-size: 13px; cursor: pointer; }
           @media print {
             .no-print { display: none !important; }
             body { padding: 20px; }
@@ -139,7 +139,7 @@ export default function EmployeeReviewViewPage({ searchParams }: PageProps) {
         `}</style>
       </head>
       <body>
-        <button className="print-btn no-print" onClick={() => window.print()}>Print / Save PDF</button>
+        <PrintButton />
 
         <h1>Manager Review — {subject.name}</h1>
         <p className="meta">

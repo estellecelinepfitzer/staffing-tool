@@ -10,7 +10,7 @@ import {
 import { sendReviewReminder } from '@/lib/email';
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL ?? 'https://staffing-tool-production-b3d1.up.railway.app';
+  process.env.NEXT_PUBLIC_BASE_URL ?? 'https://staffing-tool.up.railway.app';
 
 function isAdmin() {
   const c = cookies().get(DASHBOARD_COOKIE_NAME);
