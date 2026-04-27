@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { RATING_LABELS } from '@/lib/reviewQuestions';
-import type { CycleQuestion, MemberGoal, TeamMemberRow } from '@/lib/db';
+import type { CycleQuestion, MemberGoal } from '@/lib/db';
 
 interface PeerReview {
   label: string;
@@ -26,7 +26,19 @@ interface Props {
   questions: CycleQuestion[];
   selfQuestions: CycleQuestion[];
   goals: MemberGoal[];
-  allMembers: { token: string; name: string }[];
+}
+
+function BackToProfile({ token }: { token: string }) {
+  return (
+    <div className="pt-2 pb-4">
+      <a
+        href={`/my-reviews?token=${token}`}
+        className="block w-full text-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        ← Back to my profile
+      </a>
+    </div>
+  );
 }
 
 function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
@@ -71,103 +83,6 @@ function RatingDisplay({ value }: { value: string | number }) {
   return <span className="text-sm text-gray-800">{RATING_LABELS[n] ?? String(value)}</span>;
 }
 
-function SharePanel({
-  assignmentId,
-  subjectToken,
-  allMembers,
-}: {
-  assignmentId: number;
-  subjectToken: string;
-  allMembers: { token: string; name: string }[];
-}) {
-  const [sharedTokens, setSharedTokens] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function loadShares() {
-    if (loaded) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/review/share?assignment=${assignmentId}`);
-      if (res.ok) {
-        const data = await res.json() as { shares: { recipient_token: string }[] };
-        setSharedTokens(data.shares.map((s) => s.recipient_token));
-      }
-    } catch {
-      setError('Failed to load shares');
-    } finally {
-      setLoading(false);
-      setLoaded(true);
-    }
-  }
-
-  async function toggleShare(recipientToken: string, currentlyShared: boolean) {
-    try {
-      const method = currentlyShared ? 'DELETE' : 'POST';
-      const res = await fetch('/api/review/share', {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignment_id: assignmentId, recipient_token: recipientToken }),
-      });
-      if (!res.ok) throw new Error('Failed');
-      setSharedTokens((prev) =>
-        currentlyShared ? prev.filter((t) => t !== recipientToken) : [...prev, recipientToken],
-      );
-    } catch {
-      setError('Failed to update sharing');
-    }
-  }
-
-  // Available recipients: exclude the subject themselves
-  const available = allMembers.filter((m) => m.token !== subjectToken);
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-medium text-gray-700">Share this review</p>
-        {!loaded && (
-          <button
-            onClick={loadShares}
-            disabled={loading}
-            className="text-xs text-gray-500 hover:text-gray-700 underline"
-          >
-            {loading ? 'Loading…' : 'Load sharing settings'}
-          </button>
-        )}
-      </div>
-
-      {error && (
-        <p className="text-xs text-red-600 mb-2">{error}</p>
-      )}
-
-      {loaded ? (
-        <div className="space-y-2">
-          {available.map((member) => {
-            const isShared = sharedTokens.includes(member.token);
-            return (
-              <label key={member.token} className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isShared}
-                  onChange={() => toggleShare(member.token, isShared)}
-                  className="h-4 w-4 rounded border-gray-300 accent-gray-800 cursor-pointer"
-                />
-                <span className="text-sm text-gray-700">{member.name}</span>
-              </label>
-            );
-          })}
-          {available.length === 0 && (
-            <p className="text-xs text-gray-400">No other team members to share with.</p>
-          )}
-        </div>
-      ) : (
-        <p className="text-xs text-gray-400">Click "Load sharing settings" to manage who can see this review.</p>
-      )}
-    </div>
-  );
-}
-
 export default function ManagerReviewForm({
   cycleId,
   managerToken,
@@ -184,7 +99,6 @@ export default function ManagerReviewForm({
   questions,
   selfQuestions,
   goals,
-  allMembers,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, string | number>>(() => {
     const init: Record<string, string | number> = {};
@@ -299,7 +213,8 @@ export default function ManagerReviewForm({
             </svg>
           </div>
           <h1 className="text-lg font-semibold text-gray-900 mb-1">Review signed off</h1>
-          <p className="text-sm text-gray-500">The employee has been notified.</p>
+          <p className="text-sm text-gray-500 mb-6">The employee has been notified.</p>
+          <BackToProfile token={managerToken} />
         </div>
       </div>
     );
@@ -530,14 +445,9 @@ export default function ManagerReviewForm({
             </div>
           )}
 
-          {/* Share panel — shown after sign-off */}
           {signedOff && (
             <div className="pb-8">
-              <SharePanel
-                assignmentId={assignmentId}
-                subjectToken={subjectToken}
-                allMembers={allMembers}
-              />
+              <BackToProfile token={managerToken} />
             </div>
           )}
         </div>

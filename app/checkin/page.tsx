@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { getMemberByToken, getCheckin, getMemberGoals, getSharedWithMember } from '@/lib/db';
+import { getMemberByToken, getCheckin, getMemberGoals } from '@/lib/db';
 import { getISOWeek, formatWeekLabel } from '@/lib/weeks';
 import { verifySignedToken, COOKIE_NAME } from '@/lib/auth';
 import CheckinForm from './CheckinForm';
@@ -58,14 +58,6 @@ export default function CheckinPage({ searchParams }: PageProps) {
     goals = [];
   }
 
-  // Get reviews shared with this member
-  const sharedItems = getSharedWithMember(token).map((item) => ({
-    assignment_id: item.assignment.id,
-    cycleName: item.cycleName,
-    subjectName: item.subjectName,
-    shared_at: item.share.shared_at,
-  }));
-
   return (
     <CheckinForm
       member={member}
@@ -76,7 +68,6 @@ export default function CheckinPage({ searchParams }: PageProps) {
       weekLabel={formatWeekLabel(week, year)}
       token={token}
       goals={goals}
-      sharedReviews={sharedItems}
     />
   );
 }

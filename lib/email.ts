@@ -133,6 +133,25 @@ export async function sendReviewAvailable(
   );
 }
 
+// ─── Invitation ───────────────────────────────────────────────────────────────
+
+export async function sendInvitation(
+  to: string,
+  firstName: string,
+  profileLink: string,
+) {
+  await send(
+    to,
+    'You have been invited to MTIP Staffing',
+    base(`
+      <h1 style="margin:0 0 12px;font-size:20px;font-weight:600">Hi ${firstName},</h1>
+      <p style="margin:0 0 8px">You have been added to the MTIP internal staffing and review tool.</p>
+      <p style="margin:0">Click the button below to access your profile, set your password, and get started.</p>
+      ${btn('Access my profile', profileLink)}
+    `),
+  );
+}
+
 // ─── Reminder ─────────────────────────────────────────────────────────────────
 
 export async function sendReviewReminder(

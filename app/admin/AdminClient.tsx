@@ -27,6 +27,7 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
   const [error, setError] = useState<string | null>(null);
 
   // Goals state
+  const [inviteSent, setInviteSent] = useState<Record<string, string>>({});
   const [goalsOpenFor, setGoalsOpenFor] = useState<string | null>(null);
   const [goalsByMember, setGoalsByMember] = useState<Record<string, MemberGoal[]>>({});
   const [goalsLoading, setGoalsLoading] = useState<Record<string, boolean>>({});
@@ -172,6 +173,19 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
     }
   }
 
+  async function handleInvite(token: string) {
+    setSaving((s) => ({ ...s, [`invite_${token}`]: true }));
+    try {
+      const res = await fetch(`/api/admin/team/${token}/invite`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed to send invitation');
+      setInviteSent((p) => ({ ...p, [token]: 'sent' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error sending invitation');
+    } finally {
+      setSaving((s) => ({ ...s, [`invite_${token}`]: false }));
+    }
+  }
+
   async function handleSetActive(token: string, name: string, active: boolean) {
     const label = active ? 'Activate' : 'Deactivate';
     if (!active && !confirm(`Deactivate ${name}? They will no longer appear in check-ins or reviews.`)) return;
@@ -261,6 +275,7 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Goals</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Check-in</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Password</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">Invite</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Active</th>
               </tr>
             </thead>
@@ -376,6 +391,23 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                             className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
                           >
                             Reset
+                          </button>
+                        )
+                      )}
+                    </td>
+
+                    {/* Invite */}
+                    <td className="px-4 py-3">
+                      {isActive && (
+                        inviteSent[member.token] === 'sent' ? (
+                          <span className="text-xs text-green-600 font-medium">Sent ✓</span>
+                        ) : (
+                          <button
+                            onClick={() => handleInvite(member.token)}
+                            disabled={saving[`invite_${member.token}`]}
+                            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                          >
+                            {saving[`invite_${member.token}`] ? 'Sending…' : 'Send invite'}
                           </button>
                         )
                       )}

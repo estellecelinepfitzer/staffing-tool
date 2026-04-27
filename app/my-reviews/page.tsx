@@ -164,6 +164,16 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
           </div>
         )}
 
+        {/* Change password */}
+        <div className="mb-6">
+          <a
+            href={`/change-password?token=${token}`}
+            className="block w-full text-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Change password
+          </a>
+        </div>
+
         {/* Reviews section */}
         <div>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Reviews</h2>
@@ -219,6 +229,9 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
                       >
                         <span className={`w-4 h-4 rounded flex-shrink-0 ${selfAssignment?.status === 'submitted' ? 'bg-green-100 border border-green-300' : 'border border-gray-300 group-hover:border-gray-500'}`} />
                         Self-review
+                        {cycle.self_due && (
+                          <span className="text-gray-400 text-xs">· due {cycle.self_due}</span>
+                        )}
                         <span className="text-gray-400 text-xs ml-auto">
                           {selfAssignment?.status === 'submitted' ? 'Edit →' : 'Complete →'}
                         </span>
@@ -233,6 +246,7 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
                         token={token}
                         subjectToken={a.subject_token}
                         isSubmitted={a.status === 'submitted'}
+                        dueDate={cycle.peer_due}
                       />
                     </li>
                   ))}
@@ -244,6 +258,7 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
                         token={token}
                         subjectToken={a.subject_token}
                         isSubmitted={a.status === 'submitted'}
+                        dueDate={cycle.manager_due}
                       />
                     </li>
                   ))}
@@ -276,11 +291,13 @@ async function PeerAssignmentItem({
   token,
   subjectToken,
   isSubmitted,
+  dueDate,
 }: {
   cycleId: number;
   token: string;
   subjectToken: string;
   isSubmitted: boolean;
+  dueDate: string | null;
 }) {
   const subject = getTeamMember(subjectToken);
   const subjectName = subject?.name ?? subjectToken;
@@ -292,6 +309,7 @@ async function PeerAssignmentItem({
     >
       <span className={`w-4 h-4 rounded flex-shrink-0 ${isSubmitted ? 'bg-green-100 border border-green-300' : 'border border-gray-300 group-hover:border-gray-500'}`} />
       Peer review — {subjectName}
+      {dueDate && <span className="text-gray-400 text-xs">· due {dueDate}</span>}
       <span className="text-gray-400 text-xs ml-auto">{isSubmitted ? 'Edit →' : 'Complete →'}</span>
     </a>
   );
@@ -302,11 +320,13 @@ async function ManagerAssignmentItem({
   token,
   subjectToken,
   isSubmitted,
+  dueDate,
 }: {
   cycleId: number;
   token: string;
   subjectToken: string;
   isSubmitted: boolean;
+  dueDate: string | null;
 }) {
   const subject = getTeamMember(subjectToken);
   const subjectName = subject?.name ?? subjectToken;
@@ -318,6 +338,7 @@ async function ManagerAssignmentItem({
     >
       <span className={`w-4 h-4 rounded flex-shrink-0 ${isSubmitted ? 'bg-green-100 border border-green-300' : 'border border-gray-300 group-hover:border-gray-500'}`} />
       Manager review — {subjectName}
+      {dueDate && <span className="text-gray-400 text-xs">· due {dueDate}</span>}
       <span className="text-gray-400 text-xs ml-auto">{isSubmitted ? 'Edit →' : 'Complete →'}</span>
     </a>
   );

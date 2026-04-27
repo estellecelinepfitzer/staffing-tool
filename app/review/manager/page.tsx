@@ -11,7 +11,6 @@ import {
   getSignoff,
   getMemberGoals,
   getCycleQuestions,
-  getActiveTeamMembers,
 } from '@/lib/db';
 import type { ReviewAssignment, ReviewResponse } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
@@ -147,7 +146,6 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
   const goals = getMemberGoals(subjectToken);
   const questions = getCycleQuestions(cycleId, 'manager');
   const selfQuestions = getCycleQuestions(cycleId, 'self');
-  const allMembers = getActiveTeamMembers();
 
   return (
     <ManagerReviewForm
@@ -167,7 +165,6 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
       goals={goals}
       questions={questions}
       selfQuestions={selfQuestions}
-      allMembers={allMembers.map((m) => ({ token: m.token, name: m.name }))}
     />
   );
 }
