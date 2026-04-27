@@ -425,23 +425,21 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                             Deactivate
                           </button>
                         ) : (
-                          <>
-                            <button
-                              onClick={() => handleSetActive(member.token, member.name, true)}
-                              disabled={saving[`active_${member.token}`]}
-                              className="rounded-lg border border-green-200 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors"
-                            >
-                              Activate
-                            </button>
-                            <button
-                              onClick={() => handleDelete(member.token, member.name)}
-                              disabled={saving[`delete_${member.token}`]}
-                              className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-40 transition-colors"
-                            >
-                              Delete
-                            </button>
-                          </>
+                          <button
+                            onClick={() => handleSetActive(member.token, member.name, true)}
+                            disabled={saving[`active_${member.token}`]}
+                            className="rounded-lg border border-green-200 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors"
+                          >
+                            Activate
+                          </button>
                         )}
+                        <button
+                          onClick={() => handleDelete(member.token, member.name)}
+                          disabled={saving[`delete_${member.token}`]}
+                          className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-40 transition-colors"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </td>
                   </tr>
