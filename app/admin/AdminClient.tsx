@@ -27,7 +27,6 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
   const [error, setError] = useState<string | null>(null);
 
   // Goals state
-  const [inviteSent, setInviteSent] = useState<Record<string, string>>({});
   const [goalsOpenFor, setGoalsOpenFor] = useState<string | null>(null);
   const [goalsByMember, setGoalsByMember] = useState<Record<string, MemberGoal[]>>({});
   const [goalsLoading, setGoalsLoading] = useState<Record<string, boolean>>({});
@@ -173,19 +172,6 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
     }
   }
 
-  async function handleInvite(token: string) {
-    setSaving((s) => ({ ...s, [`invite_${token}`]: true }));
-    try {
-      const res = await fetch(`/api/admin/team/${token}/invite`, { method: 'POST' });
-      if (!res.ok) throw new Error('Failed to send invitation');
-      setInviteSent((p) => ({ ...p, [token]: 'sent' }));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error sending invitation');
-    } finally {
-      setSaving((s) => ({ ...s, [`invite_${token}`]: false }));
-    }
-  }
-
   async function handleSetActive(token: string, name: string, active: boolean) {
     const label = active ? 'Activate' : 'Deactivate';
     if (!active && !confirm(`Deactivate ${name}? They will no longer appear in check-ins or reviews.`)) return;
@@ -207,7 +193,7 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
     }
   }
 
-  async function handleAddMember() {
+  async function handleAddMember(sendInvite = false) {
     if (!newName.trim() || !newEmail.trim() || !newPassword.trim()) return;
     setAdding(true);
     try {
@@ -220,6 +206,9 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
       if (!res.ok) throw new Error('Failed to add member');
       const data = await res.json() as { member: TeamMemberRow };
       setMembers((prev) => [...prev, data.member].sort((a, b) => a.name.localeCompare(b.name)));
+      if (sendInvite) {
+        await fetch(`/api/admin/team/${token}/invite`, { method: 'POST' });
+      }
       setNewName('');
       setNewEmail('');
       setNewPassword('');
@@ -275,7 +264,6 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Goals</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Check-in</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Password</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Invite</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Active</th>
               </tr>
             </thead>
@@ -396,23 +384,6 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                       )}
                     </td>
 
-                    {/* Invite */}
-                    <td className="px-4 py-3">
-                      {isActive && (
-                        inviteSent[member.token] === 'sent' ? (
-                          <span className="text-xs text-green-600 font-medium">Sent ✓</span>
-                        ) : (
-                          <button
-                            onClick={() => handleInvite(member.token)}
-                            disabled={saving[`invite_${member.token}`]}
-                            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
-                          >
-                            {saving[`invite_${member.token}`] ? 'Sending…' : 'Send invite'}
-                          </button>
-                        )
-                      )}
-                    </td>
-
                     {/* Activate / Deactivate / Delete */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -446,7 +417,7 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                   {/* Goals inline panel */}
                   {isGoalsOpen && (
                     <tr key={`${member.token}-goals`} className="border-b border-gray-100 bg-blue-50/30">
-                      <td colSpan={8} className="px-4 py-4">
+                      <td colSpan={7} className="px-4 py-4">
                         <div className="max-w-2xl">
                           {/* Goal list */}
                           <div className="space-y-2 mb-3">
@@ -528,11 +499,18 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                 />
               </div>
               <button
-                onClick={handleAddMember}
+                onClick={() => handleAddMember(false)}
+                disabled={adding || !newName.trim() || !newEmail.trim() || !newPassword.trim()}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+              >
+                {adding ? 'Adding…' : 'Add'}
+              </button>
+              <button
+                onClick={() => handleAddMember(true)}
                 disabled={adding || !newName.trim() || !newEmail.trim() || !newPassword.trim()}
                 className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
               >
-                {adding ? 'Adding…' : 'Add'}
+                {adding ? 'Adding…' : 'Add & send invite'}
               </button>
               <button
                 onClick={() => setShowAdd(false)}
