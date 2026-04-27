@@ -228,7 +228,7 @@ function TeamRow({ member, week, year }: { member: MemberRow; week: number; year
   const firstName = member.name.split(' ')[0];
   const nowWeek = getISOWeek(new Date());
   const isCurrentWeek = week === nowWeek.week && year === nowWeek.year;
-  const checkinHref = `/my-reviews?token=${member.token}`;
+  const checkinHref = `/my-reviews?token=${member.token}&week=${week}&year=${year}`;
 
   return (
     <tr className={`align-top ${!checkin ? 'opacity-50' : ''}`}>

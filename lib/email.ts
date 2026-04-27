@@ -2,7 +2,7 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = 'MTIP Reviews <onboarding@resend.dev>';
+const FROM = 'MTIP Reviews <noreply@reviews.mtip.ch>';
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 

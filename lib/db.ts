@@ -43,7 +43,7 @@ const SEED_MEMBERS = [
   { token: 'christoph-kau', name: 'Christoph Kausch',         email: 'christoph.kausch@mtip.ch',       password: 'christoph2026' },
   { token: 'anja-pet',      name: 'Anja Peter',               email: 'anja.peter@mtip.ch',             password: 'anja2026'      },
   { token: 'carmen-bru',    name: 'Carmen Bruneau',           email: 'carmen.bruneau@mtip.ch',         password: 'carmen2026'    },
-  { token: 'christoph-vdm', name: 'Christoph Vonder Mühll',  email: 'christoph.vondermuhll@mtip.ch',  password: 'christoph2026' },
+  { token: 'christoph-vdm', name: 'Christoph Vonder Mühll',  email: 'christoph.vondermuehll@mtip.ch', password: 'christoph2026' },
   { token: 'estelle-pfz',   name: 'Estelle Pfitzer',          email: 'estellepfitzer@mtip.ch',         password: 'estelle2026'   },
   { token: 'jean-wal',      name: 'Jean Wallerand',           email: 'jean.wallerand@mtip.ch',         password: 'jean2026'      },
   { token: 'katrin-vat',    name: 'Katrin Vatiska',           email: 'katrin.vatiska@mtip.ch',         password: 'katrin2026'    },

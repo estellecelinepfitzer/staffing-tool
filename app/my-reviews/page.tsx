@@ -10,12 +10,12 @@ import {
 } from '@/lib/db';
 import type { ReviewCycle, ReviewAssignment } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
-import { getISOWeek, formatWeekLabel } from '@/lib/weeks';
+import { getISOWeek, formatWeekLabel, getNextWeek } from '@/lib/weeks';
 
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  searchParams: { token?: string };
+  searchParams: { token?: string; week?: string; year?: string };
 }
 
 function StatusBadge({ status }: { status: ReviewCycle['status'] }) {
@@ -47,6 +47,8 @@ function ErrorScreen({ title, body }: { title: string; body: string }) {
 
 export default async function MyReviewsPage({ searchParams }: PageProps) {
   const token = searchParams.token?.trim();
+  const weekParam = searchParams.week ? parseInt(searchParams.week, 10) : null;
+  const yearParam = searchParams.year ? parseInt(searchParams.year, 10) : null;
 
   if (!token) {
     return <ErrorScreen title="No token provided" body="Please use your personal reviews link." />;
@@ -70,12 +72,13 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
   const allCycles = getAllCycles();
   const goals = getMemberGoals(token);
 
-  // Check-in for current week (only if checkin enabled)
+  // Weeks to show: selected week (from dashboard) + the following week
   const now = new Date();
-  const { week: currentWeek, year: currentYear } = getISOWeek(now);
-  const weekLabel = formatWeekLabel(currentWeek, currentYear);
-  const existingCheckin = hasCheckin ? getCheckin(token, currentWeek, currentYear) : null;
-  const checkinHref = `/checkin?token=${token}`;
+  const nowIso = getISOWeek(now);
+  const selectedWeek = (weekParam && yearParam) ? { week: weekParam, year: yearParam } : nowIso;
+  const followingWeek = getNextWeek(selectedWeek.week, selectedWeek.year);
+
+  const weekSlots = hasCheckin ? [selectedWeek, followingWeek] : [];
 
   // Build per-cycle data
   const cycleData: {
@@ -99,26 +102,35 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
         <h1 className="text-xl font-semibold text-gray-900 mb-6">Hi, {firstName}</h1>
 
         {/* Weekly staffing section — only for checkin-enabled members */}
-        {hasCheckin && (
+        {weekSlots.length > 0 && (
           <div className="mb-6">
             <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Weekly staffing</h2>
-            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{weekLabel}</p>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {existingCheckin ? 'Check-in submitted' : 'Not submitted yet'}
-                </p>
-              </div>
-              <a
-                href={checkinHref}
-                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                  existingCheckin
-                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    : 'bg-gray-900 text-white hover:bg-gray-700'
-                }`}
-              >
-                {existingCheckin ? 'Edit' : 'Fill in'}
-              </a>
+            <div className="space-y-2">
+              {weekSlots.map(({ week, year }) => {
+                const label = formatWeekLabel(week, year);
+                const existing = getCheckin(token, week, year);
+                const href = `/checkin?token=${token}&week=${week}&year=${year}`;
+                return (
+                  <div key={`${year}-${week}`} className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{label}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {existing ? 'Check-in submitted' : 'Not submitted yet'}
+                      </p>
+                    </div>
+                    <a
+                      href={href}
+                      className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                        existing
+                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-gray-900 text-white hover:bg-gray-700'
+                      }`}
+                    >
+                      {existing ? 'Edit' : 'Fill in'}
+                    </a>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
