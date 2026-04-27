@@ -5,9 +5,11 @@ import {
   getAllCycles,
   getAssignmentsForReviewer,
   getSignoff,
+  getCheckin,
 } from '@/lib/db';
 import type { ReviewCycle, ReviewAssignment } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
+import { getISOWeek, formatWeekLabel } from '@/lib/weeks';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,6 +67,13 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
   const firstName = member.name.split(' ')[0];
   const allCycles = getAllCycles();
 
+  // Check-in for current week
+  const now = new Date();
+  const { week: currentWeek, year: currentYear } = getISOWeek(now);
+  const weekLabel = formatWeekLabel(currentWeek, currentYear);
+  const existingCheckin = getCheckin(token, currentWeek, currentYear);
+  const checkinHref = `/checkin?token=${token}`;
+
   // Build per-cycle data
   const cycleData: {
     cycle: ReviewCycle;
@@ -86,7 +95,34 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-xl font-semibold text-gray-900 mb-6">My Reviews — {firstName}</h1>
+        <h1 className="text-xl font-semibold text-gray-900 mb-6">Hi, {firstName}</h1>
+
+        {/* Weekly staffing section */}
+        <div className="mb-6">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Weekly staffing</h2>
+          <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-900">{weekLabel}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {existingCheckin ? 'Check-in submitted' : 'Not submitted yet'}
+              </p>
+            </div>
+            <a
+              href={checkinHref}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                existingCheckin
+                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  : 'bg-gray-900 text-white hover:bg-gray-700'
+              }`}
+            >
+              {existingCheckin ? 'Edit' : 'Fill in'}
+            </a>
+          </div>
+        </div>
+
+        {/* Reviews section */}
+        <div>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Reviews</h2>
 
         {cycleData.length === 0 && (
           <div className="bg-white rounded-xl border border-gray-200 px-5 py-8 text-center">
@@ -171,6 +207,7 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
               </div>
             );
           })}
+        </div>
         </div>
       </div>
     </div>
