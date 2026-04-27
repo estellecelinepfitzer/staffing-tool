@@ -246,6 +246,13 @@ function initSchema(db: Database.Database) {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+
   // Backfill questions for existing cycles that have none
   const cycles = db.prepare('SELECT id FROM review_cycles').all() as { id: number }[];
   for (const { id } of cycles) {
@@ -911,4 +918,17 @@ export function unshareManagerReview(assignmentId: number, recipientToken: strin
   getDb()
     .prepare('DELETE FROM manager_review_shares WHERE assignment_id = ? AND recipient_token = ?')
     .run(assignmentId, recipientToken);
+}
+
+export function getAdminPasswordOverride(): string | null {
+  const row = getDb()
+    .prepare('SELECT value FROM settings WHERE key = ?')
+    .get('admin_password') as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setAdminPasswordOverride(password: string): void {
+  getDb()
+    .prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
+    .run('admin_password', password);
 }

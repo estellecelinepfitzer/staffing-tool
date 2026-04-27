@@ -164,16 +164,6 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
           </div>
         )}
 
-        {/* Change password */}
-        <div className="mb-6">
-          <a
-            href={`/change-password?token=${token}`}
-            className="block w-full text-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Change password
-          </a>
-        </div>
-
         {/* Reviews section */}
         <div>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Reviews</h2>
@@ -280,6 +270,16 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
             );
           })}
         </div>
+        </div>
+
+        {/* Change password — small link at the bottom */}
+        <div className="mt-8 text-center">
+          <a
+            href={`/change-password?token=${token}`}
+            className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2"
+          >
+            Change password
+          </a>
         </div>
       </div>
     </div>

@@ -92,6 +92,15 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
   const [newPassword, setNewPassword] = useState('');
   const [adding, setAdding] = useState(false);
 
+  // Admin password change state
+  const [showAdminPw, setShowAdminPw] = useState(false);
+  const [adminCurrentPw, setAdminCurrentPw] = useState('');
+  const [adminNewPw, setAdminNewPw] = useState('');
+  const [adminNewPwConfirm, setAdminNewPwConfirm] = useState('');
+  const [adminPwSaving, setAdminPwSaving] = useState(false);
+  const [adminPwError, setAdminPwError] = useState<string | null>(null);
+  const [adminPwSuccess, setAdminPwSuccess] = useState(false);
+
   async function handleManagerChange(token: string, managerToken: string) {
     setSaving((s) => ({ ...s, [`manager_${token}`]: true }));
     try {
@@ -217,6 +226,34 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
       setError(err instanceof Error ? err.message : 'Error adding member');
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function handleAdminPwChange() {
+    if (!adminCurrentPw || !adminNewPw || !adminNewPwConfirm) return;
+    if (adminNewPw !== adminNewPwConfirm) { setAdminPwError('New passwords do not match'); return; }
+    if (adminNewPw.length < 6) { setAdminPwError('Password must be at least 6 characters'); return; }
+    setAdminPwSaving(true);
+    setAdminPwError(null);
+    try {
+      const res = await fetch('/api/admin/settings/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: adminCurrentPw, newPassword: adminNewPw }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(data.error ?? 'Failed');
+      }
+      setAdminPwSuccess(true);
+      setAdminCurrentPw('');
+      setAdminNewPw('');
+      setAdminNewPwConfirm('');
+      setTimeout(() => { setAdminPwSuccess(false); setShowAdminPw(false); }, 2000);
+    } catch (err) {
+      setAdminPwError(err instanceof Error ? err.message : 'Error changing password');
+    } finally {
+      setAdminPwSaving(false);
     }
   }
 
@@ -528,6 +565,66 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
             + Add team member
           </button>
         )}
+
+        {/* Admin settings */}
+        <div className="mt-8">
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Settings</h2>
+          <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+            {showAdminPw ? (
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-3">Change admin password</p>
+                <div className="space-y-2 max-w-xs">
+                  <input
+                    type="password"
+                    placeholder="Current password"
+                    value={adminCurrentPw}
+                    onChange={(e) => setAdminCurrentPw(e.target.value)}
+                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  />
+                  <input
+                    type="password"
+                    placeholder="New password"
+                    value={adminNewPw}
+                    onChange={(e) => setAdminNewPw(e.target.value)}
+                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={adminNewPwConfirm}
+                    onChange={(e) => setAdminNewPwConfirm(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAdminPwChange(); }}
+                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  />
+                  {adminPwError && <p className="text-xs text-red-600">{adminPwError}</p>}
+                  {adminPwSuccess && <p className="text-xs text-green-600">Password updated.</p>}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleAdminPwChange}
+                      disabled={adminPwSaving || !adminCurrentPw || !adminNewPw || !adminNewPwConfirm}
+                      className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                    >
+                      {adminPwSaving ? 'Saving…' : 'Update password'}
+                    </button>
+                    <button
+                      onClick={() => { setShowAdminPw(false); setAdminPwError(null); setAdminCurrentPw(''); setAdminNewPw(''); setAdminNewPwConfirm(''); }}
+                      className="text-sm text-gray-400 hover:text-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowAdminPw(true)}
+                className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2"
+              >
+                Change admin password
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
