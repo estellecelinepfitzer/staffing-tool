@@ -536,13 +536,6 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
                 />
               </div>
               <button
-                onClick={() => handleAddMember(false)}
-                disabled={adding || !newName.trim() || !newEmail.trim() || !newPassword.trim()}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 transition-colors"
-              >
-                {adding ? 'Adding…' : 'Add'}
-              </button>
-              <button
                 onClick={() => handleAddMember(true)}
                 disabled={adding || !newName.trim() || !newEmail.trim() || !newPassword.trim()}
                 className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
