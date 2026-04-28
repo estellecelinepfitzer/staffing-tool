@@ -124,7 +124,10 @@ export default function DashboardClient() {
         <div className="max-w-full mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
 
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex items-center gap-4 min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/mtip-logo.png" alt="MTIP" className="h-7 w-auto shrink-0" />
+              <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentWeek(prevWeek)}
                 className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
@@ -152,6 +155,7 @@ export default function DashboardClient() {
                   Today
                 </button>
               )}
+              </div>
             </div>
 
             <div className="flex items-center gap-3 shrink-0">

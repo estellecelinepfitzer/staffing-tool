@@ -198,6 +198,8 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-xl mx-auto px-4 py-10 pb-16">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/mtip-logo.png" alt="MTIP" className="h-8 w-auto mb-8" />
 
         {/* Goals section */}
         {goals && goals.length > 0 && (

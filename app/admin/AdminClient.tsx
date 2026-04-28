@@ -264,7 +264,11 @@ export default function AdminClient({ members: initialMembers, cycles }: Props) 
       <div className="max-w-full mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/mtip-logo.png" alt="MTIP" className="h-7 w-auto" />
+            <h1 className="text-xl font-semibold text-gray-900">Admin</h1>
+          </div>
           <div className="flex items-center gap-2">
             <Link
               href="/dashboard"
