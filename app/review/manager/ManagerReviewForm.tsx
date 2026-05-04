@@ -9,6 +9,7 @@ interface MemberGoalExtended {
   body: string;
   description: string;
   progress: number;
+  progress_comment: string;
   company_goal_id: number | null;
   scale: 'rating_5' | 'percent_100';
 }
@@ -274,18 +275,18 @@ export default function ManagerReviewForm({
             </div>
           </Collapsible>
 
-          {/* Goals reference (read-only) */}
+          {/* Goals — with self-reported progress and comment */}
           {goals.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
               <p className="text-sm font-medium text-gray-700 mb-4">Goals — {subjectName}</p>
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {goals.map((goal) => (
-                  <div key={goal.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                    <p className="text-sm font-medium text-gray-800 mb-1">{goal.body}</p>
+                  <div key={goal.id} className="border-b border-gray-100 pb-5 last:border-0 last:pb-0">
+                    <p className="text-sm font-medium text-gray-800 mb-0.5">{goal.body}</p>
                     {goal.description && (
                       <p className="text-xs text-gray-500 mb-2">{goal.description}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-2 mb-3">
                       <span className="text-xs text-gray-400">Progress:</span>
                       {goal.scale === 'percent_100' ? (
                         <>
@@ -300,6 +301,12 @@ export default function ManagerReviewForm({
                         </span>
                       )}
                     </div>
+                    {goal.progress_comment ? (
+                      <div>
+                        <p className="text-xs font-medium text-gray-400 mb-1">Employee comment</p>
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{goal.progress_comment}</p>
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -202,8 +202,9 @@ function initSchema(db: Database.Database) {
   addColumnIfMissing(db, 'member_goals', 'company_goal_id', 'INTEGER');
   addColumnIfMissing(db, 'member_goals', 'description',     'TEXT NOT NULL DEFAULT \'\'');
   addColumnIfMissing(db, 'member_goals', 'progress',        'REAL NOT NULL DEFAULT 0');
-  addColumnIfMissing(db, 'member_goals', 'scale',           "TEXT NOT NULL DEFAULT 'percent_100'");
-  addColumnIfMissing(db, 'company_goals', 'scale',          "TEXT NOT NULL DEFAULT 'percent_100'");
+  addColumnIfMissing(db, 'member_goals', 'scale',            "TEXT NOT NULL DEFAULT 'percent_100'");
+  addColumnIfMissing(db, 'member_goals', 'progress_comment', "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, 'company_goals', 'scale',           "TEXT NOT NULL DEFAULT 'percent_100'");
 
   // ── Company-level goals ──
   db.exec(`
@@ -1153,6 +1154,7 @@ export interface MemberGoalExtended extends MemberGoal {
   description: string;
   progress: number;
   scale: 'rating_5' | 'percent_100';
+  progress_comment: string;
 }
 
 export function getMemberGoalsExtended(memberToken: string): MemberGoalExtended[] {
@@ -1181,6 +1183,14 @@ export function updateMemberGoalDescription(id: number, description: string): vo
 
 export function updateMemberGoalScale(id: number, scale: 'rating_5' | 'percent_100'): void {
   getDb().prepare('UPDATE member_goals SET scale = ? WHERE id = ?').run(scale, id);
+}
+
+export function updateMemberGoalProgressAndComment(id: number, progress: number, comment: string): void {
+  getDb().prepare('UPDATE member_goals SET progress = ?, progress_comment = ? WHERE id = ?').run(progress, comment, id);
+}
+
+export function getMemberGoalById(id: number): MemberGoalExtended | null {
+  return (getDb().prepare('SELECT * FROM member_goals WHERE id = ?').get(id) as MemberGoalExtended) ?? null;
 }
 
 export function upsertCheckinResponse(

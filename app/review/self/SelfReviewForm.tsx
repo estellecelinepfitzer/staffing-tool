@@ -9,6 +9,7 @@ interface MemberGoalExtended {
   body: string;
   description: string;
   progress: number;
+  progress_comment: string;
   company_goal_id: number | null;
   scale: 'rating_5' | 'percent_100';
 }
@@ -22,6 +23,23 @@ interface Props {
   isEditable: boolean;
   questions: CycleQuestion[];
   goals: MemberGoalExtended[];
+}
+
+interface GoalState {
+  progress: number;
+  comment: string;
+}
+
+async function saveGoal(goalId: number, progress: number, comment: string) {
+  try {
+    await fetch(`/api/review/goals/${goalId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ progress, progress_comment: comment }),
+    });
+  } catch {
+    // silent failure
+  }
 }
 
 export default function SelfReviewForm({
@@ -41,6 +59,11 @@ export default function SelfReviewForm({
     }
     return init;
   });
+
+  const [goalStates, setGoalStates] = useState<Record<number, GoalState>>(() =>
+    Object.fromEntries(goals.map((g) => [g.id, { progress: g.progress, comment: g.progress_comment }])),
+  );
+
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -76,6 +99,20 @@ export default function SelfReviewForm({
     await saveField(key, value);
   }
 
+  function updateGoalState(goalId: number, patch: Partial<GoalState>) {
+    setGoalStates((prev) => ({ ...prev, [goalId]: { ...prev[goalId], ...patch } }));
+  }
+
+  async function handleGoalProgressChange(goal: MemberGoalExtended, value: number) {
+    updateGoalState(goal.id, { progress: value });
+    await saveGoal(goal.id, value, goalStates[goal.id]?.comment ?? '');
+  }
+
+  async function handleGoalCommentBlur(goal: MemberGoalExtended) {
+    const state = goalStates[goal.id];
+    await saveGoal(goal.id, state?.progress ?? goal.progress, state?.comment ?? '');
+  }
+
   async function handleSubmit() {
     const missing = questions.filter(
       (q) => q.required === 1 && (answers[q.question_key] === '' || answers[q.question_key] === undefined),
@@ -88,7 +125,13 @@ export default function SelfReviewForm({
     setSubmitting(true);
     try {
       const allKeys = questions.map((q) => q.question_key);
-      await Promise.all(allKeys.map((key) => saveField(key, answers[key] ?? '')));
+      await Promise.all([
+        ...allKeys.map((key) => saveField(key, answers[key] ?? '')),
+        ...goals.map((g) => {
+          const s = goalStates[g.id];
+          return saveGoal(g.id, s?.progress ?? g.progress, s?.comment ?? '');
+        }),
+      ]);
       const res = await fetch('/api/review/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -136,34 +179,89 @@ export default function SelfReviewForm({
         </div>
 
         <div className="space-y-5">
-          {/* Goals reference (read-only) */}
+          {/* Goals — editable progress + comment when form is open */}
           {goals.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
               <p className="text-sm font-medium text-gray-700 mb-4">Your goals</p>
-              <div className="space-y-4">
-                {goals.map((goal) => (
-                  <div key={goal.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                    <p className="text-sm font-medium text-gray-800 mb-1">{goal.body}</p>
-                    {goal.description && (
-                      <p className="text-xs text-gray-500 mb-2">{goal.description}</p>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className="text-xs text-gray-400">Progress:</span>
-                      {goal.scale === 'percent_100' ? (
-                        <>
-                          <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
-                            <div className="bg-gray-700 h-1.5 rounded-full" style={{ width: `${goal.progress}%` }} />
-                          </div>
-                          <span className="text-xs text-gray-500">{Math.round(goal.progress)}%</span>
-                        </>
-                      ) : (
-                        <span className="text-xs text-gray-700">
-                          {goal.progress > 0 ? `${goal.progress} / 5` : <span className="text-gray-400">—</span>}
-                        </span>
+              <div className="space-y-5">
+                {goals.map((goal) => {
+                  const state = goalStates[goal.id] ?? { progress: goal.progress, comment: goal.progress_comment };
+                  return (
+                    <div key={goal.id} className="border-b border-gray-100 pb-5 last:border-0 last:pb-0">
+                      <p className="text-sm font-medium text-gray-800 mb-0.5">{goal.body}</p>
+                      {goal.description && (
+                        <p className="text-xs text-gray-500 mb-3">{goal.description}</p>
                       )}
+
+                      {/* Progress input */}
+                      <div className="mb-3">
+                        <p className="text-xs font-medium text-gray-500 mb-2">Progress</p>
+                        {goal.scale === 'percent_100' ? (
+                          isEditable ? (
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                step={5}
+                                value={state.progress}
+                                onChange={(e) => handleGoalProgressChange(goal, Number(e.target.value))}
+                                className="flex-1 accent-gray-800"
+                              />
+                              <span className="text-xs text-gray-600 w-10 text-right">{Math.round(state.progress)}%</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
+                                <div className="bg-gray-700 h-1.5 rounded-full" style={{ width: `${state.progress}%` }} />
+                              </div>
+                              <span className="text-xs text-gray-500">{Math.round(state.progress)}%</span>
+                            </div>
+                          )
+                        ) : isEditable ? (
+                          <div className="flex gap-3 flex-wrap">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={`goal_progress_${goal.id}`}
+                                  value={n}
+                                  checked={state.progress === n}
+                                  onChange={() => handleGoalProgressChange(goal, n)}
+                                  className="w-4 h-4 accent-gray-800"
+                                />
+                                <span className="text-xs text-gray-500 text-center max-w-[60px]">{RATING_LABELS[n]}</span>
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-700">
+                            {state.progress > 0 ? `${state.progress} / 5` : <span className="text-gray-400">—</span>}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Comment */}
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">Comment</p>
+                        {isEditable ? (
+                          <textarea
+                            rows={2}
+                            className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent placeholder-gray-400"
+                            placeholder="How did this goal go? Any blockers or context for your manager…"
+                            value={state.comment}
+                            onChange={(e) => updateGoalState(goal.id, { comment: e.target.value })}
+                            onBlur={() => handleGoalCommentBlur(goal)}
+                          />
+                        ) : (
+                          <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                            {state.comment || <span className="text-gray-400">No comment</span>}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
