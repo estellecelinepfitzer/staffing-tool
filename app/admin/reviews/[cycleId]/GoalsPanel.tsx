@@ -148,13 +148,13 @@ export default function GoalsPanel({ cycleId, members }: Props) {
                   value={newGoalText}
                   onChange={(e) => setNewGoalText(e.target.value)}
                   placeholder="Enter goal…"
-                  className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal"
                 />
                 <div className="flex flex-col gap-1.5">
                   <button
                     onClick={() => handleAddGoal(member.token)}
                     disabled={savingNew || !newGoalText.trim()}
-                    className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                    className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                   >
                     {savingNew ? '…' : 'Add'}
                   </button>
@@ -207,7 +207,7 @@ function GoalRow({
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={handleBlur}
-        className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+        className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
       />
       <button
         onClick={onDelete}

@@ -7,8 +7,10 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Better radio button appearance on mobile */
-  input[type='radio'] {
-    accent-color: #111827;
+  /* Brand accent for interactive inputs */
+  input[type='radio'],
+  input[type='range'],
+  input[type='checkbox'] {
+    accent-color: #0080C9;
   }
 }

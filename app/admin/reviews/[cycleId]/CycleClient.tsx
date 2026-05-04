@@ -363,7 +363,7 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
                   <td className="py-2.5 font-medium text-gray-900">{member.name}</td>
                   <td className="py-2.5">
                     <select
-                      className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800"
+                      className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                       value={member.manager_token || ''}
                       onChange={(e) => handleManagerChange(member.token, e.target.value)}
                     >
@@ -443,7 +443,7 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
                       {isAddingHere ? (
                         <div className="flex items-center gap-2">
                           <select
-                            className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800"
+                            className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                             value={peerSelectValue}
                             onChange={(e) => setPeerSelectValue(e.target.value)}
                             autoFocus
@@ -456,7 +456,7 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
                           <button
                             onClick={() => handleAddPeer(subject.token, peerSelectValue)}
                             disabled={!peerSelectValue || peerAddLoading}
-                            className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                            className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                           >
                             Add
                           </button>
@@ -527,7 +527,7 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
                 <button
                   onClick={() => handlePhase(next)}
                   disabled={phaseLoading}
-                  className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                 >
                   {ADVANCE_LABELS[next] ?? `Advance to ${STATUS_LABELS[next]}`}
                 </button>
@@ -657,7 +657,7 @@ function QuestionsTabPanel({
             onClick={() => setTab(t.key)}
             className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
               tab === t.key
-                ? 'bg-gray-900 text-white'
+                ? 'bg-brand-blue text-white'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >

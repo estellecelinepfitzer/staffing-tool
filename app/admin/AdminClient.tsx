@@ -321,7 +321,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
             <div className="relative" ref={settingsRef}>
               <button
                 onClick={() => { setShowSettings((p) => !p); setShowAdminPw(false); }}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${showSettings ? 'border-gray-800 bg-gray-900 text-white' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${showSettings ? 'border-gray-800 bg-brand-blue text-white' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
                 title="Settings"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -352,14 +352,14 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                           placeholder="Current password"
                           value={adminCurrentPw}
                           onChange={(e) => setAdminCurrentPw(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                         />
                         <input
                           type="password"
                           placeholder="New password"
                           value={adminNewPw}
                           onChange={(e) => setAdminNewPw(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                         />
                         <input
                           type="password"
@@ -367,7 +367,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                           value={adminNewPwConfirm}
                           onChange={(e) => setAdminNewPwConfirm(e.target.value)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleAdminPwChange(); }}
-                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                         />
                         {adminPwError && <p className="text-xs text-red-600">{adminPwError}</p>}
                         {adminPwSuccess && <p className="text-xs text-green-600">Password updated.</p>}
@@ -375,7 +375,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                           <button
                             onClick={handleAdminPwChange}
                             disabled={adminPwSaving || !adminCurrentPw || !adminNewPw || !adminNewPwConfirm}
-                            className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                            className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                           >
                             {adminPwSaving ? 'Saving…' : 'Update password'}
                           </button>
@@ -466,7 +466,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                           if (e.key === 'Enter') handleRenameCategory(cat.id);
                           if (e.key === 'Escape') setEditingCategoryId(null);
                         }}
-                        className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                        className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                         autoFocus
                       />
                     ) : (
@@ -509,12 +509,12 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                   onChange={(e) => setNewCategoryLabel(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); }}
                   placeholder="New category name…"
-                  className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                 />
                 <button
                   onClick={handleAddCategory}
                   disabled={addingCategory || !newCategoryLabel.trim()}
-                  className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                 >
                   {addingCategory ? '…' : 'Add'}
                 </button>
@@ -561,7 +561,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                     {/* Manager dropdown */}
                     <td className="px-4 py-3">
                       <select
-                        className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800 disabled:opacity-50"
+                        className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal disabled:opacity-50"
                         value={member.manager_token || ''}
                         disabled={saving[`manager_${member.token}`] || !isActive}
                         onChange={(e) => handleManagerChange(member.token, e.target.value)}
@@ -603,7 +603,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                           <div className="flex items-center gap-2">
                             <input
                               type="text"
-                              className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-gray-800"
+                              className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                               placeholder="New password"
                               value={passwordInput[member.token] ?? ''}
                               onChange={(e) =>
@@ -618,7 +618,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                             <button
                               onClick={() => handlePasswordSave(member.token)}
                               disabled={saving[`pw_${member.token}`] || !passwordInput[member.token]}
-                              className="rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                              className="rounded-lg bg-brand-blue px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                             >
                               Save
                             </button>
@@ -685,7 +685,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                 <label className="text-xs text-gray-500">Name</label>
                 <input
                   type="text"
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm w-44 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                   placeholder="Full name"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
@@ -695,7 +695,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                 <label className="text-xs text-gray-500">Email</label>
                 <input
                   type="email"
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm w-56 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                   placeholder="email@mtip.ch"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
@@ -705,7 +705,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                 <label className="text-xs text-gray-500">Password</label>
                 <input
                   type="text"
-                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="rounded-lg border border-gray-200 px-3 py-2 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                   placeholder="Initial password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
@@ -714,7 +714,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
               <button
                 onClick={() => handleAddMember(true)}
                 disabled={adding || !newName.trim() || !newEmail.trim() || !newPassword.trim()}
-                className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
               >
                 {adding ? 'Adding…' : 'Add & send invite'}
               </button>

@@ -44,7 +44,7 @@ export default function AdminLogin() {
             onChange={(e) => setPassword(e.target.value)}
             autoFocus
             placeholder="Password"
-            className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+            className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
           />
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">{error}</p>
@@ -52,7 +52,7 @@ export default function AdminLogin() {
           <button
             type="submit"
             disabled={loading || !password}
-            className="w-full bg-gray-900 text-white rounded-xl py-3 text-sm font-medium hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? 'Checking…' : 'Sign in'}
           </button>

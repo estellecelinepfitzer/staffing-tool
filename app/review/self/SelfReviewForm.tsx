@@ -206,14 +206,14 @@ export default function SelfReviewForm({
                                 step={5}
                                 value={state.progress}
                                 onChange={(e) => handleGoalProgressChange(goal, Number(e.target.value))}
-                                className="flex-1 accent-gray-800"
+                                className="flex-1 accent-[#0080C9]"
                               />
                               <span className="text-xs text-gray-600 w-10 text-right">{Math.round(state.progress)}%</span>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2">
                               <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
-                                <div className="bg-gray-700 h-1.5 rounded-full" style={{ width: `${state.progress}%` }} />
+                                <div className="bg-brand-teal h-1.5 rounded-full" style={{ width: `${state.progress}%` }} />
                               </div>
                               <span className="text-xs text-gray-500">{Math.round(state.progress)}%</span>
                             </div>
@@ -228,7 +228,7 @@ export default function SelfReviewForm({
                                   value={n}
                                   checked={state.progress === n}
                                   onChange={() => handleGoalProgressChange(goal, n)}
-                                  className="w-4 h-4 accent-gray-800"
+                                  className="w-4 h-4 accent-[#0080C9]"
                                 />
                                 <span className="text-xs text-gray-500 text-center max-w-[60px]">{RATING_LABELS[n]}</span>
                               </label>
@@ -247,7 +247,7 @@ export default function SelfReviewForm({
                         {isEditable ? (
                           <textarea
                             rows={2}
-                            className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent placeholder-gray-400"
+                            className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
                             placeholder="How did this goal go? Any blockers or context for your manager…"
                             value={state.comment}
                             onChange={(e) => updateGoalState(goal.id, { comment: e.target.value })}
@@ -284,7 +284,7 @@ export default function SelfReviewForm({
                           value={n}
                           checked={answers[q.question_key] === n}
                           onChange={() => handleRatingChange(q.question_key, n)}
-                          className="w-4 h-4 accent-gray-800"
+                          className="w-4 h-4 accent-[#0080C9]"
                         />
                         <span className="text-xs text-gray-500 text-center max-w-[80px]">
                           {RATING_LABELS[n]}
@@ -302,7 +302,7 @@ export default function SelfReviewForm({
               ) : isEditable ? (
                 <textarea
                   rows={4}
-                  className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent placeholder-gray-400"
+                  className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
                   placeholder={q.placeholder ?? ''}
                   value={String(answers[q.question_key] ?? '')}
                   onChange={(e) => handleChange(q.question_key, e.target.value)}
@@ -324,7 +324,7 @@ export default function SelfReviewForm({
               <button
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="w-full bg-gray-900 text-white rounded-xl py-3 text-sm font-medium hover:bg-gray-700 active:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? 'Submitting…' : 'Submit self-review'}
               </button>

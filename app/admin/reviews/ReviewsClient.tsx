@@ -119,7 +119,7 @@ export default function ReviewsClient({ cycles: initialCycles }: Props) {
                   value={formData.name}
                   onChange={(e) => setFormData((f) => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. H1 2026 Review"
-                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                 />
               </div>
               <div className="grid grid-cols-3 gap-3">
@@ -129,7 +129,7 @@ export default function ReviewsClient({ cycles: initialCycles }: Props) {
                     type="date"
                     value={formData.self_due}
                     onChange={(e) => setFormData((f) => ({ ...f, self_due: e.target.value }))}
-                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                   />
                 </div>
                 <div>
@@ -138,7 +138,7 @@ export default function ReviewsClient({ cycles: initialCycles }: Props) {
                     type="date"
                     value={formData.peer_due}
                     onChange={(e) => setFormData((f) => ({ ...f, peer_due: e.target.value }))}
-                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                   />
                 </div>
                 <div>
@@ -147,7 +147,7 @@ export default function ReviewsClient({ cycles: initialCycles }: Props) {
                     type="date"
                     value={formData.manager_due}
                     onChange={(e) => setFormData((f) => ({ ...f, manager_due: e.target.value }))}
-                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                    className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                   />
                 </div>
               </div>
@@ -155,7 +155,7 @@ export default function ReviewsClient({ cycles: initialCycles }: Props) {
                 <button
                   type="submit"
                   disabled={creating || !formData.name.trim()}
-                  className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                 >
                   {creating ? 'Creating…' : 'Create cycle'}
                 </button>

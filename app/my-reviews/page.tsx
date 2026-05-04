@@ -123,7 +123,7 @@ export default async function MyReviewsPage({ searchParams }: PageProps) {
                       className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
                         existing
                           ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          : 'bg-gray-900 text-white hover:bg-gray-700'
+                          : 'bg-brand-blue text-white hover:bg-[#006BB0]'
                       }`}
                     >
                       {existing ? 'Edit' : 'Fill in'}

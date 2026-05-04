@@ -109,7 +109,7 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
                   value={newText}
                   onChange={(e) => setNewText(e.target.value)}
                   placeholder="Enter question text…"
-                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal"
                 />
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-1.5 cursor-pointer text-xs text-gray-600">
@@ -140,7 +140,7 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
                 <button
                   onClick={handleAddQuestion}
                   disabled={savingNew || !newText.trim()}
-                  className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                 >
                   {savingNew ? '…' : 'Add'}
                 </button>
@@ -207,7 +207,7 @@ function QuestionRow({
             value={text}
             onChange={(e) => setText(e.target.value)}
             onBlur={handleBlur}
-            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
           />
         )}
         <span className={`mt-2 text-xs px-1.5 py-0.5 rounded shrink-0 ${

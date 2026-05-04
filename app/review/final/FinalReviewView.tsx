@@ -133,7 +133,7 @@ export default function FinalReviewView({
                 <button
                   onClick={handleAcknowledge}
                   disabled={loading}
-                  className="bg-gray-900 text-white rounded-xl px-5 py-2.5 text-sm font-medium hover:bg-gray-700 active:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="bg-brand-blue text-white rounded-xl px-5 py-2.5 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   {loading ? 'Acknowledging…' : 'I acknowledge this review'}
                 </button>

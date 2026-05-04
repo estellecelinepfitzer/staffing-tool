@@ -291,7 +291,7 @@ export default function ManagerReviewForm({
                       {goal.scale === 'percent_100' ? (
                         <>
                           <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
-                            <div className="bg-gray-700 h-1.5 rounded-full" style={{ width: `${goal.progress}%` }} />
+                            <div className="bg-brand-teal h-1.5 rounded-full" style={{ width: `${goal.progress}%` }} />
                           </div>
                           <span className="text-xs text-gray-500">{Math.round(goal.progress)}%</span>
                         </>
@@ -332,7 +332,7 @@ export default function ManagerReviewForm({
                           value={n}
                           checked={answers[q.question_key] === n}
                           onChange={() => handleRatingChange(q.question_key, n)}
-                          className="w-4 h-4 accent-gray-800"
+                          className="w-4 h-4 accent-[#0080C9]"
                         />
                         <span className="text-xs text-gray-500 text-center max-w-[80px]">
                           {RATING_LABELS[n]}
@@ -346,7 +346,7 @@ export default function ManagerReviewForm({
               ) : isEditable ? (
                 <textarea
                   rows={4}
-                  className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent placeholder-gray-400"
+                  className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
                   placeholder={q.placeholder ?? ''}
                   value={String(answers[q.question_key] ?? '')}
                   onChange={(e) => handleTextChange(q.question_key, e.target.value)}
@@ -365,7 +365,7 @@ export default function ManagerReviewForm({
               <button
                 onClick={handleSignOff}
                 disabled={submitting}
-                className="w-full bg-gray-900 text-white rounded-xl py-3 text-sm font-medium hover:bg-gray-700 active:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? 'Signing off…' : 'Submit and sign off'}
               </button>
@@ -392,7 +392,7 @@ export default function ManagerReviewForm({
                   <button
                     onClick={handleRelease}
                     disabled={releasing}
-                    className="shrink-0 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                    className="shrink-0 rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                   >
                     {releasing ? 'Releasing…' : `Release to ${subjectName.split(' ')[0]}`}
                   </button>

@@ -31,14 +31,14 @@ function ScaleToggle({ value, onChange }: { value: Scale; onChange: (s: Scale) =
       <button
         type="button"
         onClick={() => onChange('percent_100')}
-        className={`rounded px-2 py-1 text-xs font-medium transition-colors border ${value === 'percent_100' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+        className={`rounded px-2 py-1 text-xs font-medium transition-colors border ${value === 'percent_100' ? 'bg-brand-blue text-white border-gray-900' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
       >
         0–100%
       </button>
       <button
         type="button"
         onClick={() => onChange('rating_5')}
-        className={`rounded px-2 py-1 text-xs font-medium transition-colors border ${value === 'rating_5' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+        className={`rounded px-2 py-1 text-xs font-medium transition-colors border ${value === 'rating_5' ? 'bg-brand-blue text-white border-gray-900' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
       >
         1–5
       </button>
@@ -204,7 +204,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                   value={newCompanyTitle}
                   onChange={(e) => setNewCompanyTitle(e.target.value)}
                   placeholder="Goal title"
-                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                   autoFocus
                 />
                 <textarea
@@ -212,7 +212,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                   onChange={(e) => setNewCompanyDesc(e.target.value)}
                   rows={2}
                   placeholder="Description (optional)"
-                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gray-800"
+                  className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal"
                 />
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500">Progress scale:</span>
@@ -223,7 +223,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                 <button
                   onClick={handleAddCompanyGoal}
                   disabled={addingCompany || !newCompanyTitle.trim()}
-                  className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                 >
                   {addingCompany ? '…' : 'Add company goal'}
                 </button>
@@ -320,7 +320,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                         value={newPersonalTitle}
                         onChange={(e) => setNewPersonalTitle(e.target.value)}
                         placeholder="Goal title"
-                        className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
+                        className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
                         autoFocus
                       />
                       <textarea
@@ -328,13 +328,13 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                         onChange={(e) => setNewPersonalDesc(e.target.value)}
                         rows={2}
                         placeholder="Description (optional)"
-                        className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gray-800"
+                        className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal"
                       />
                       <div className="flex items-center gap-3 flex-wrap">
                         <select
                           value={newPersonalCompanyId ?? ''}
                           onChange={(e) => setNewPersonalCompanyId(e.target.value ? Number(e.target.value) : null)}
-                          className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800"
+                          className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                         >
                           <option value="">— no company goal —</option>
                           {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}
@@ -346,7 +346,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                         <button
                           onClick={() => handleAddPersonalGoal(member.token)}
                           disabled={addingPersonal || !newPersonalTitle.trim()}
-                          className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                          className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
                         >
                           {addingPersonal ? '…' : 'Add'}
                         </button>
@@ -406,7 +406,7 @@ function CompanyGoalEditForm({ goal, onSave, onCancel }: {
         type="text"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="block w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-gray-800"
+        className="block w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-teal"
         autoFocus
       />
       <textarea
@@ -414,14 +414,14 @@ function CompanyGoalEditForm({ goal, onSave, onCancel }: {
         onChange={(e) => setDesc(e.target.value)}
         rows={2}
         placeholder="Description (optional)"
-        className="block w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gray-800"
+        className="block w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal"
       />
       <div className="flex items-center gap-2">
         <span className="text-xs text-gray-500">Progress scale:</span>
         <ScaleToggle value={scale} onChange={setScale} />
       </div>
       <div className="flex gap-2">
-        <button onClick={() => onSave({ title: title.trim(), description: desc.trim(), scale })} disabled={!title.trim()} className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors">Save</button>
+        <button onClick={() => onSave({ title: title.trim(), description: desc.trim(), scale })} disabled={!title.trim()} className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors">Save</button>
         <button onClick={onCancel} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
       </div>
     </div>
@@ -480,7 +480,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
             onChange={(e) => { setIsDragging(true); setLocalProgress(Number(e.target.value)); }}
             onMouseUp={(e) => handleProgressCommit(Number((e.target as HTMLInputElement).value))}
             onTouchEnd={(e) => handleProgressCommit(Number((e.target as HTMLInputElement).value))}
-            className="flex-1 accent-gray-800"
+            className="flex-1 accent-[#0080C9]"
           />
           <span className="text-xs text-gray-500 w-10 text-right">{localProgress}%</span>
         </div>
@@ -490,7 +490,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
             <button
               key={n}
               onClick={() => handleProgressCommit(n)}
-              className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${localProgress === n ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${localProgress === n ? 'bg-brand-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
             >
               {n}
             </button>
@@ -510,7 +510,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
             <select
               value={goal.company_goal_id ?? ''}
               onChange={(e) => onLink(e.target.value ? Number(e.target.value) : null)}
-              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800"
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
             >
               <option value="">— none —</option>
               {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}

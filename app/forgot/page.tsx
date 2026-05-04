@@ -50,7 +50,7 @@ function RequestCodeForm({ onSent }: { onSent: (token: string) => void }) {
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@mtip.ch"
           autoFocus
-          className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+          className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
         />
 
         {error && (
@@ -60,7 +60,7 @@ function RequestCodeForm({ onSent }: { onSent: (token: string) => void }) {
         <button
           type="submit"
           disabled={loading || !email}
-          className="w-full bg-gray-900 text-white rounded-xl py-3 text-sm font-medium hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Sending…' : 'Send reset code'}
         </button>
@@ -137,21 +137,21 @@ function ResetForm({ tokenHint }: { tokenHint: string }) {
           placeholder="A3F9B2C1"
           autoFocus
           maxLength={8}
-          className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-mono tracking-widest uppercase placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+          className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-mono tracking-widest uppercase placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
         />
         <input
           type="password"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           placeholder="New password"
-          className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+          className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
         />
         <input
           type="password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           placeholder="Confirm new password"
-          className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+          className="block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
         />
 
         {error && (
@@ -161,7 +161,7 @@ function ResetForm({ tokenHint }: { tokenHint: string }) {
         <button
           type="submit"
           disabled={loading || !code || !newPassword || !confirm}
-          className="w-full bg-gray-900 text-white rounded-xl py-3 text-sm font-medium hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? 'Saving…' : 'Set new password'}
         </button>

@@ -296,7 +296,7 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="block rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+              className="block rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
             />
           </Section>
 
@@ -311,7 +311,7 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
               <select
                 value={workingDays}
                 onChange={(e) => handleWorkingDaysChange(Number(e.target.value))}
-                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent"
+                className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
               >
                 {[0, 1, 2, 3, 4, 5].map((d) => (
                   <option key={d} value={d}>{d} {d === 1 ? 'day' : 'days'}</option>
@@ -357,7 +357,7 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
                           value={data.days}
                           onChange={(e) => setCatDays(cat.id, Number(e.target.value))}
                           disabled={workingDays === 0}
-                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           {opts.map((v) => <option key={v} value={v}>{v}d</option>)}
                         </select>
@@ -376,7 +376,7 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
                       }}
                       rows={3}
                       placeholder="—"
-                      className={`block w-full rounded-md border px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent resize-y transition-colors ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:bg-white'}`}
+                      className={`block w-full rounded-md border px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent resize-y transition-colors ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:bg-white'}`}
                     />
                     {hasError && <p className="text-xs text-red-600 mt-1">{fieldErrors[cat.id]}</p>}
                   </div>
@@ -401,7 +401,7 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-gray-900 text-white rounded-xl py-3.5 text-sm font-medium hover:bg-gray-700 active:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-brand-blue text-white rounded-xl py-3.5 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? 'Saving…' : isUpdate ? 'Update response' : 'Submit check-in'}
           </button>
