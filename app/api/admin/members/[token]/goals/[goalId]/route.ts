@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated } from '@/lib/adminAuth';
-import { updateMemberGoal, deleteMemberGoal } from '@/lib/db';
+import { updateMemberGoal, deleteMemberGoal, updateMemberGoalProgress, updateMemberGoalCompanyLink, updateMemberGoalDescription } from '@/lib/db';
 
 export async function PATCH(
   request: NextRequest,
@@ -11,12 +11,16 @@ export async function PATCH(
   const id = parseInt(params.goalId, 10);
   if (isNaN(id)) return NextResponse.json({ error: 'Invalid goalId' }, { status: 400 });
 
-  const body = await request.json() as { body: string };
-  if (!body.body?.trim()) {
-    return NextResponse.json({ error: 'body required' }, { status: 400 });
-  }
+  const body = await request.json() as { body?: string; progress?: number; company_goal_id?: number | null; description?: string };
 
-  updateMemberGoal(id, body.body.trim());
+  if (body.body !== undefined) {
+    if (!body.body.trim()) return NextResponse.json({ error: 'body required' }, { status: 400 });
+    updateMemberGoal(id, body.body.trim());
+  }
+  if (body.progress !== undefined) updateMemberGoalProgress(id, body.progress);
+  if ('company_goal_id' in body) updateMemberGoalCompanyLink(id, body.company_goal_id ?? null);
+  if (body.description !== undefined) updateMemberGoalDescription(id, body.description);
+
   return NextResponse.json({ ok: true });
 }
 

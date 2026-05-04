@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCheckinMembers, getWeekCheckins } from '@/lib/db';
+import { getCheckinMembers, getWeekCheckins, getActiveCategories, getCheckinResponsesForWeek } from '@/lib/db';
 import { getISOWeek } from '@/lib/weeks';
 
 // GET /api/dashboard?week=17&year=2026
@@ -15,13 +15,29 @@ export async function GET(req: NextRequest) {
 
   const members = getCheckinMembers();
   const checkins = getWeekCheckins(week, year);
+  const categories = getActiveCategories();
+  const allResponses = getCheckinResponsesForWeek(week, year);
+
+  // Group responses by checkin_id
+  const responsesByCheckin = new Map<number, typeof allResponses>();
+  for (const r of allResponses) {
+    if (!responsesByCheckin.has(r.checkin_id)) responsesByCheckin.set(r.checkin_id, []);
+    responsesByCheckin.get(r.checkin_id)!.push(r);
+  }
+
   const checkinByToken = new Map(checkins.map((c) => [c.member_token, c]));
 
-  const team = members.map((member) => ({
-    name:    member.name,
-    token:   member.token,
-    checkin: checkinByToken.get(member.token) ?? null,
-  }));
+  const team = members.map((member) => {
+    const checkin = checkinByToken.get(member.token) ?? null;
+    return {
+      name:    member.name,
+      token:   member.token,
+      checkin: checkin ? {
+        ...checkin,
+        category_responses: responsesByCheckin.get(checkin.id) ?? [],
+      } : null,
+    };
+  });
 
   team.sort((a, b) => {
     if (a.checkin && !b.checkin) return -1;
@@ -36,7 +52,7 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json(
-    { week, year, team, submittedCount: checkins.length, totalCount: members.length },
+    { week, year, team, submittedCount: checkins.length, totalCount: members.length, categories },
     { headers: { 'Cache-Control': 'no-store' } },
   );
 }

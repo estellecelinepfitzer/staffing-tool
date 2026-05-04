@@ -199,6 +199,20 @@ function initSchema(db: Database.Database) {
       created_at    TEXT NOT NULL
     )
   `);
+  addColumnIfMissing(db, 'member_goals', 'company_goal_id', 'INTEGER');
+  addColumnIfMissing(db, 'member_goals', 'description',     'TEXT NOT NULL DEFAULT \'\'');
+  addColumnIfMissing(db, 'member_goals', 'progress',        'REAL NOT NULL DEFAULT 0');
+
+  // ── Company-level goals ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS company_goals (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      title       TEXT    NOT NULL,
+      description TEXT    NOT NULL DEFAULT '',
+      sort_order  INTEGER NOT NULL DEFAULT 0,
+      created_at  TEXT    NOT NULL
+    )
+  `);
 
   // ── Cycle questions ──
   db.exec(`
@@ -252,6 +266,68 @@ function initSchema(db: Database.Database) {
       value TEXT NOT NULL
     )
   `);
+
+  // ── Staffing categories ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      label       TEXT    NOT NULL,
+      sort_order  INTEGER NOT NULL DEFAULT 0,
+      active      INTEGER NOT NULL DEFAULT 1,
+      created_at  TEXT    NOT NULL
+    )
+  `);
+
+  // ── Per-checkin category responses (replaces hard-coded columns for new data) ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS checkin_responses (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      checkin_id      INTEGER NOT NULL REFERENCES checkins(id),
+      category_id     INTEGER NOT NULL REFERENCES categories(id),
+      category_label  TEXT    NOT NULL,
+      days            REAL    NOT NULL DEFAULT 0,
+      notes           TEXT    NOT NULL DEFAULT '',
+      UNIQUE(checkin_id, category_id)
+    )
+  `);
+
+  // Seed the 5 original categories with explicit IDs so the legacy migration can rely on them.
+  const now = new Date().toISOString();
+  db.prepare(`INSERT OR IGNORE INTO categories (id, label, sort_order, active, created_at) VALUES (1, 'Sourcing',        0, 1, ?)`).run(now);
+  db.prepare(`INSERT OR IGNORE INTO categories (id, label, sort_order, active, created_at) VALUES (2, 'Converting',      1, 1, ?)`).run(now);
+  db.prepare(`INSERT OR IGNORE INTO categories (id, label, sort_order, active, created_at) VALUES (3, 'Execution',       2, 1, ?)`).run(now);
+  db.prepare(`INSERT OR IGNORE INTO categories (id, label, sort_order, active, created_at) VALUES (4, 'Portfolio Exits', 3, 1, ?)`).run(now);
+  db.prepare(`INSERT OR IGNORE INTO categories (id, label, sort_order, active, created_at) VALUES (5, 'Portfolio Other', 4, 1, ?)`).run(now);
+
+  // Migrate existing checkin data into checkin_responses (idempotent — skips rows that already exist).
+  const legacyMap = [
+    { id: 1, notesCol: 'sourcing',        daysCol: 'sourcing_days'        },
+    { id: 2, notesCol: 'converting',      daysCol: 'converting_days'      },
+    { id: 3, notesCol: 'execution',       daysCol: 'execution_days'       },
+    { id: 4, notesCol: 'portfolio_exits', daysCol: 'portfolio_exits_days' },
+    { id: 5, notesCol: 'portfolio_other', daysCol: 'portfolio_other_days' },
+  ] as const;
+  const catLabel = db.prepare('SELECT label FROM categories WHERE id = ?');
+  const insertResp = db.prepare(`
+    INSERT OR IGNORE INTO checkin_responses (checkin_id, category_id, category_label, days, notes)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const allCheckins = db.prepare('SELECT * FROM checkins').all() as Record<string, unknown>[];
+  db.transaction(() => {
+    for (const ci of allCheckins) {
+      for (const { id, notesCol, daysCol } of legacyMap) {
+        const row = catLabel.get(id) as { label: string } | undefined;
+        if (!row) continue;
+        insertResp.run(
+          ci.id,
+          id,
+          row.label,
+          (ci[daysCol] as number) ?? 0,
+          (ci[notesCol] as string) ?? '',
+        );
+      }
+    }
+  })();
 
   // Backfill questions for existing cycles that have none
   const cycles = db.prepare('SELECT id FROM review_cycles').all() as { id: number }[];
@@ -351,8 +427,8 @@ export function getCheckin(memberToken: string, isoWeek: number, isoYear: number
     .get(memberToken, isoWeek, isoYear) as Checkin | undefined;
 }
 
-export function upsertCheckin(data: Omit<Checkin, 'id'>): void {
-  getDb()
+export function upsertCheckin(data: Omit<Checkin, 'id'>): number {
+  const result = getDb()
     .prepare(`
       INSERT INTO checkins
         (member_token, member_name, iso_week, iso_year, submitted_at,
@@ -383,6 +459,12 @@ export function upsertCheckin(data: Omit<Checkin, 'id'>): void {
       data.working_days, data.sourcing_days, data.converting_days,
       data.execution_days, data.portfolio_exits_days, data.portfolio_other_days,
     );
+  // For ON CONFLICT updates, lastInsertRowid returns the rowid of the existing row.
+  if (result.lastInsertRowid) return result.lastInsertRowid as number;
+  const row = getDb()
+    .prepare('SELECT id FROM checkins WHERE member_token = ? AND iso_week = ? AND iso_year = ?')
+    .get(data.member_token, data.iso_week, data.iso_year) as { id: number } | undefined;
+  return row?.id ?? 0;
 }
 
 export function getWeekCheckins(isoWeek: number, isoYear: number): Checkin[] {
@@ -931,4 +1013,182 @@ export function setAdminPasswordOverride(password: string): void {
   getDb()
     .prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
     .run('admin_password', password);
+}
+
+// ─── Category types + queries ─────────────────────────────────────────────────
+
+export interface Category {
+  id: number;
+  label: string;
+  sort_order: number;
+  active: number;
+  created_at: string;
+}
+
+export interface CheckinResponse {
+  id: number;
+  checkin_id: number;
+  category_id: number;
+  category_label: string;
+  days: number;
+  notes: string;
+}
+
+export function getActiveCategories(): Category[] {
+  return getDb()
+    .prepare('SELECT * FROM categories WHERE active = 1 ORDER BY sort_order ASC, id ASC')
+    .all() as Category[];
+}
+
+export function getAllCategories(): Category[] {
+  return getDb()
+    .prepare('SELECT * FROM categories ORDER BY sort_order ASC, id ASC')
+    .all() as Category[];
+}
+
+export function createCategory(label: string, sortOrder: number): number {
+  const result = getDb()
+    .prepare('INSERT INTO categories (label, sort_order, active, created_at) VALUES (?, ?, 1, ?)')
+    .run(label, sortOrder, new Date().toISOString());
+  return result.lastInsertRowid as number;
+}
+
+export function updateCategoryLabel(id: number, label: string): void {
+  getDb().prepare('UPDATE categories SET label = ? WHERE id = ?').run(label, id);
+}
+
+export function updateCategorySortOrder(id: number, sortOrder: number): void {
+  getDb().prepare('UPDATE categories SET sort_order = ? WHERE id = ?').run(sortOrder, id);
+}
+
+export function softDeleteCategory(id: number): void {
+  getDb().prepare('UPDATE categories SET active = 0 WHERE id = ?').run(id);
+}
+
+export function reactivateCategory(id: number): void {
+  getDb().prepare('UPDATE categories SET active = 1 WHERE id = ?').run(id);
+}
+
+export function getCheckinResponses(checkinId: number): CheckinResponse[] {
+  return getDb()
+    .prepare('SELECT * FROM checkin_responses WHERE checkin_id = ? ORDER BY category_id ASC')
+    .all(checkinId) as CheckinResponse[];
+}
+
+export function getCheckinResponsesForWeek(isoWeek: number, isoYear: number): CheckinResponse[] {
+  return getDb()
+    .prepare(`
+      SELECT cr.* FROM checkin_responses cr
+      JOIN checkins c ON c.id = cr.checkin_id
+      WHERE c.iso_week = ? AND c.iso_year = ?
+    `)
+    .all(isoWeek, isoYear) as CheckinResponse[];
+}
+
+// ─── Goal scale setting ───────────────────────────────────────────────────────
+
+export type GoalScale = 'rating_5' | 'percent_100';
+
+export function getGoalScale(): GoalScale {
+  const row = getDb()
+    .prepare('SELECT value FROM settings WHERE key = ?')
+    .get('goal_scale') as { value: string } | undefined;
+  return (row?.value as GoalScale) ?? 'percent_100';
+}
+
+export function setGoalScale(scale: GoalScale): void {
+  getDb()
+    .prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
+    .run('goal_scale', scale);
+}
+
+// ─── Company goal types + queries ─────────────────────────────────────────────
+
+export interface CompanyGoal {
+  id: number;
+  title: string;
+  description: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export function getAllCompanyGoals(): CompanyGoal[] {
+  return getDb()
+    .prepare('SELECT * FROM company_goals ORDER BY sort_order ASC, id ASC')
+    .all() as CompanyGoal[];
+}
+
+export function createCompanyGoal(title: string, description: string, sortOrder: number): number {
+  const result = getDb()
+    .prepare('INSERT INTO company_goals (title, description, sort_order, created_at) VALUES (?, ?, ?, ?)')
+    .run(title, description, sortOrder, new Date().toISOString());
+  return result.lastInsertRowid as number;
+}
+
+export function updateCompanyGoal(id: number, data: { title?: string; description?: string; sort_order?: number }): void {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  if (data.title !== undefined)      { fields.push('title = ?');      values.push(data.title); }
+  if (data.description !== undefined){ fields.push('description = ?'); values.push(data.description); }
+  if (data.sort_order !== undefined) { fields.push('sort_order = ?'); values.push(data.sort_order); }
+  if (!fields.length) return;
+  values.push(id);
+  getDb().prepare(`UPDATE company_goals SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+}
+
+export function deleteCompanyGoal(id: number): void {
+  // Unlink any personal goals linked to this company goal
+  getDb().prepare('UPDATE member_goals SET company_goal_id = NULL WHERE company_goal_id = ?').run(id);
+  getDb().prepare('DELETE FROM company_goals WHERE id = ?').run(id);
+}
+
+// ─── Extended member goal queries (with company_goal_id, description, progress) ──
+
+export interface MemberGoalExtended extends MemberGoal {
+  company_goal_id: number | null;
+  description: string;
+  progress: number;
+}
+
+export function getMemberGoalsExtended(memberToken: string): MemberGoalExtended[] {
+  return getDb()
+    .prepare('SELECT * FROM member_goals WHERE member_token = ? ORDER BY sort_order ASC, id ASC')
+    .all(memberToken) as MemberGoalExtended[];
+}
+
+export function getAllPersonalGoals(): MemberGoalExtended[] {
+  return getDb()
+    .prepare('SELECT * FROM member_goals ORDER BY member_token ASC, sort_order ASC, id ASC')
+    .all() as MemberGoalExtended[];
+}
+
+export function updateMemberGoalProgress(id: number, progress: number): void {
+  getDb().prepare('UPDATE member_goals SET progress = ? WHERE id = ?').run(progress, id);
+}
+
+export function updateMemberGoalCompanyLink(id: number, companyGoalId: number | null): void {
+  getDb().prepare('UPDATE member_goals SET company_goal_id = ? WHERE id = ?').run(companyGoalId, id);
+}
+
+export function updateMemberGoalDescription(id: number, description: string): void {
+  getDb().prepare('UPDATE member_goals SET description = ? WHERE id = ?').run(description, id);
+}
+
+export function upsertCheckinResponse(
+  checkinId: number,
+  categoryId: number,
+  categoryLabel: string,
+  days: number,
+  notes: string,
+): void {
+  getDb()
+    .prepare(`
+      INSERT INTO checkin_responses (checkin_id, category_id, category_label, days, notes)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(checkin_id, category_id) DO UPDATE SET
+        category_label = excluded.category_label,
+        days           = excluded.days,
+        notes          = excluded.notes
+    `)
+    .run(checkinId, categoryId, categoryLabel, days, notes);
 }

@@ -2,7 +2,15 @@
 
 import { useState } from 'react';
 import { RATING_LABELS } from '@/lib/reviewQuestions';
-import type { CycleQuestion, MemberGoal } from '@/lib/db';
+import type { CycleQuestion } from '@/lib/db';
+
+interface MemberGoalExtended {
+  id: number;
+  body: string;
+  description: string;
+  progress: number;
+  company_goal_id: number | null;
+}
 
 interface PeerReview {
   label: string;
@@ -25,7 +33,8 @@ interface Props {
   isReleased: boolean;
   questions: CycleQuestion[];
   selfQuestions: CycleQuestion[];
-  goals: MemberGoal[];
+  goals: MemberGoalExtended[];
+  goalScale: 'rating_5' | 'percent_100';
 }
 
 function BackToProfile({ token }: { token: string }) {
@@ -99,18 +108,10 @@ export default function ManagerReviewForm({
   questions,
   selfQuestions,
   goals,
+  goalScale,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, string | number>>(() => {
     const init: Record<string, string | number> = {};
-    // Goal responses
-    for (const goal of goals) {
-      const progressKey = `goal_progress_${goal.id}`;
-      const commentKey = `goal_comment_${goal.id}`;
-      const progressRaw = existingResponses[progressKey];
-      init[progressKey] = progressRaw !== undefined ? Number(progressRaw) : '';
-      init[commentKey] = existingResponses[commentKey] ?? '';
-    }
-    // Question responses
     for (const q of questions) {
       const raw = existingResponses[q.question_key];
       init[q.question_key] = q.question_type === 'rating' && raw !== undefined ? Number(raw) : (raw ?? '');
@@ -156,14 +157,7 @@ export default function ManagerReviewForm({
   async function handleSignOff() {
     setSubmitting(true);
     try {
-      // Save all fields
-      const allKeys: string[] = [];
-      for (const goal of goals) {
-        allKeys.push(`goal_progress_${goal.id}`, `goal_comment_${goal.id}`);
-      }
-      for (const q of questions) {
-        allKeys.push(q.question_key);
-      }
+      const allKeys = questions.map((q) => q.question_key);
       await Promise.all(allKeys.map((key) => saveField(key, answers[key] ?? '')));
 
       const res = await fetch('/api/review/signoff', {
@@ -201,23 +195,6 @@ export default function ManagerReviewForm({
     } finally {
       setReleasing(false);
     }
-  }
-
-  if (signedOff && !isEditable) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="text-center max-w-sm">
-          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <h1 className="text-lg font-semibold text-gray-900 mb-1">Review signed off</h1>
-          <p className="text-sm text-gray-500 mb-6">The employee has been notified.</p>
-          <BackToProfile token={managerToken} />
-        </div>
-      </div>
-    );
   }
 
   return (
@@ -298,61 +275,34 @@ export default function ManagerReviewForm({
             </div>
           </Collapsible>
 
-          {/* Goals section */}
+          {/* Goals reference (read-only) */}
           {goals.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-              <p className="text-sm font-medium text-gray-700 mb-4">Goals</p>
-              <div className="space-y-5">
-                {goals.map((goal) => {
-                  const progressKey = `goal_progress_${goal.id}`;
-                  const commentKey = `goal_comment_${goal.id}`;
-                  return (
-                    <div key={goal.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                      <p className="text-sm text-gray-800 mb-3 font-medium">{goal.body}</p>
-                      <div className="mb-3">
-                        <p className="text-xs font-medium text-gray-500 mb-2">Progress assessment (1–5)</p>
-                        {isEditable ? (
-                          <div className="flex gap-3 flex-wrap">
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={progressKey}
-                                  value={n}
-                                  checked={answers[progressKey] === n}
-                                  onChange={() => handleRatingChange(progressKey, n)}
-                                  className="w-4 h-4 accent-gray-800"
-                                />
-                                <span className="text-xs text-gray-500 text-center max-w-[80px]">
-                                  {RATING_LABELS[n]}
-                                </span>
-                              </label>
-                            ))}
+              <p className="text-sm font-medium text-gray-700 mb-4">Goals — {subjectName}</p>
+              <div className="space-y-4">
+                {goals.map((goal) => (
+                  <div key={goal.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                    <p className="text-sm font-medium text-gray-800 mb-1">{goal.body}</p>
+                    {goal.description && (
+                      <p className="text-xs text-gray-500 mb-2">{goal.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-gray-400">Progress:</span>
+                      {goalScale === 'percent_100' ? (
+                        <>
+                          <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
+                            <div className="bg-gray-700 h-1.5 rounded-full" style={{ width: `${goal.progress}%` }} />
                           </div>
-                        ) : (
-                          <RatingDisplay value={answers[progressKey] ?? ''} />
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-gray-500 mb-2">Comment</p>
-                        {isEditable ? (
-                          <textarea
-                            rows={3}
-                            className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent placeholder-gray-400"
-                            placeholder="Comment on this goal…"
-                            value={String(answers[commentKey] ?? '')}
-                            onChange={(e) => handleTextChange(commentKey, e.target.value)}
-                            onBlur={() => handleTextBlur(commentKey)}
-                          />
-                        ) : (
-                          <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                            {answers[commentKey] || <span className="text-gray-400">No comment</span>}
-                          </div>
-                        )}
-                      </div>
+                          <span className="text-xs text-gray-500">{Math.round(goal.progress)}%</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-700">
+                          {goal.progress > 0 ? `${goal.progress} / 5` : <span className="text-gray-400">—</span>}
+                        </span>
+                      )}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           )}

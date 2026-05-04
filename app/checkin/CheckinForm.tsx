@@ -2,18 +2,14 @@
 
 import { useState } from 'react';
 interface TeamMember { name: string; token: string; }
+interface Category { id: number; label: string; sort_order: number; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Generate [0, 0.5, 1, …, max] options */
 function dayOptions(max: number): number[] {
   const opts: number[] = [];
   for (let v = 0; v <= max; v += 0.5) opts.push(v);
   return opts;
-}
-
-function formatDays(v: number): string {
-  return v === 0 ? '0' : v % 1 === 0 ? String(v) : String(v);
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -34,39 +30,24 @@ const CAPACITY_OPTIONS: { value: number; label: string }[] = [
   { value: 5, label: 'Crunch period: execution phase' },
 ];
 
-const DEAL_FIELDS = [
-  { key: 'sourcing',        label: 'Sourcing',         sub: 'IC0 "one-pager"' },
-  { key: 'converting',      label: 'Converting',       sub: 'IC1 "BC"'        },
-  { key: 'execution',       label: 'Execution',        sub: 'IC2-3 "EP/IM"'   },
-  { key: 'portfolio_exits', label: 'Portfolio',        sub: 'Exits'           },
-  { key: 'portfolio_other', label: 'Portfolio',        sub: 'Other'           },
-] as const;
-
-type DealKey = (typeof DEAL_FIELDS)[number]['key'];
-type DayKey = `${DealKey}_days`;
-
 // ─── Props ────────────────────────────────────────────────────────────────────
+
+interface CategoryResponse { category_id: number; category_label?: string; days: number; notes: string; }
 
 interface ExistingCheckin {
   mood: number;
   capacity: number;
-  sourcing: string;
-  converting: string;
-  execution: string;
-  portfolio_exits: string;
-  portfolio_other: string;
   working_days: number;
-  sourcing_days: number;
-  converting_days: number;
-  execution_days: number;
-  portfolio_exits_days: number;
-  portfolio_other_days: number;
+  category_responses?: CategoryResponse[];
+  // legacy flat fields (backward compat)
+  sourcing?: string; sourcing_days?: number;
+  converting?: string; converting_days?: number;
+  execution?: string; execution_days?: number;
+  portfolio_exits?: string; portfolio_exits_days?: number;
+  portfolio_other?: string; portfolio_other_days?: number;
 }
 
-interface MemberGoal {
-  id: number;
-  body: string;
-}
+interface MemberGoal { id: number; body: string; }
 
 interface Props {
   member: TeamMember;
@@ -77,51 +58,56 @@ interface Props {
   weekLabel: string;
   token: string;
   goals?: MemberGoal[];
+  categories: Category[];
+  weekLocked?: boolean;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function CheckinForm({ member, existing, isoWeek, isoYear, today, weekLabel, token, goals }: Props) {
+export default function CheckinForm({ member, existing, isoWeek, isoYear, today, weekLabel, token, goals, categories, weekLocked }: Props) {
   const isUpdate = !!existing;
+
+  // Build initial category state from existing data
+  const initCategoryData = (): Record<number, { notes: string; days: number }> => {
+    const init: Record<number, { notes: string; days: number }> = {};
+    for (const cat of categories) {
+      init[cat.id] = { notes: '', days: 0 };
+    }
+    if (existing?.category_responses) {
+      for (const cr of existing.category_responses) {
+        if (init[cr.category_id] !== undefined) {
+          init[cr.category_id] = { notes: cr.notes, days: cr.days };
+        }
+      }
+    }
+    return init;
+  };
 
   const [date, setDate] = useState(today);
   const [mood, setMood] = useState<number | null>(existing?.mood ?? null);
   const [capacity, setCapacity] = useState<number | null>(existing?.capacity ?? null);
-  const [dealFields, setDealFields] = useState<Record<DealKey, string>>({
-    sourcing:        existing?.sourcing        ?? '',
-    converting:      existing?.converting      ?? '',
-    execution:       existing?.execution       ?? '',
-    portfolio_exits: existing?.portfolio_exits ?? '',
-    portfolio_other: existing?.portfolio_other ?? '',
-  });
+  const [categoryData, setCategoryData] = useState<Record<number, { notes: string; days: number }>>(initCategoryData);
   const [workingDays, setWorkingDays] = useState<number>(existing?.working_days ?? 0);
-  const [dayFields, setDayFields] = useState<Record<DayKey, number>>({
-    sourcing_days:        existing?.sourcing_days        ?? 0,
-    converting_days:      existing?.converting_days      ?? 0,
-    execution_days:       existing?.execution_days       ?? 0,
-    portfolio_exits_days: existing?.portfolio_exits_days ?? 0,
-    portfolio_other_days: existing?.portfolio_other_days ?? 0,
-  });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<number, string>>({});
 
-  function setDealField(key: DealKey, value: string) {
-    setDealFields((prev) => ({ ...prev, [key]: value }));
+  function setCatNotes(id: number, notes: string) {
+    setCategoryData((prev) => ({ ...prev, [id]: { ...prev[id], notes } }));
   }
-
-  function setDayField(key: DayKey, value: number) {
-    setDayFields((prev) => ({ ...prev, [key]: value }));
+  function setCatDays(id: number, days: number) {
+    setCategoryData((prev) => ({ ...prev, [id]: { ...prev[id], days } }));
   }
 
   function handleWorkingDaysChange(days: number) {
     setWorkingDays(days);
-    // Clamp any bucket allocations that now exceed the new working days
-    setDayFields((prev) => {
+    setCategoryData((prev) => {
       const next = { ...prev };
-      (Object.keys(next) as DayKey[]).forEach((k) => {
-        if (next[k] > days) next[k] = days;
-      });
+      for (const id of Object.keys(next)) {
+        const numId = Number(id);
+        if (next[numId].days > days) next[numId] = { ...next[numId], days };
+      }
       return next;
     });
   }
@@ -132,10 +118,29 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
     if (!mood) { setError('Please select how you are feeling today.'); return; }
     if (!capacity) { setError('Please select your capacity this week.'); return; }
 
+    const errors: Record<number, string> = {};
+    for (const cat of categories) {
+      if (!categoryData[cat.id]?.notes.trim()) {
+        errors[cat.id] = 'Required — please add at least a brief note.';
+      }
+    }
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError('Please fill in all deal pipeline notes before submitting.');
+      return;
+    }
+    setFieldErrors({});
+
     setSubmitting(true);
     setError(null);
 
     try {
+      const categoryResponses = categories.map((cat) => ({
+        category_id: cat.id,
+        days: categoryData[cat.id]?.days ?? 0,
+        notes: categoryData[cat.id]?.notes ?? '',
+      }));
+
       const res = await fetch('/api/checkin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,9 +150,8 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
           year: isoYear,
           mood,
           capacity,
-          ...dealFields,
           working_days: workingDays,
-          ...dayFields,
+          category_responses: categoryResponses,
         }),
       });
 
@@ -164,6 +168,63 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
     }
   }
 
+  // ── Locked week screen ──────────────────────────────────────────────────────
+
+  if (weekLocked) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-xl mx-auto px-4 py-10">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/mtip-logo.png" alt="MTIP" className="h-8 w-auto mb-8" />
+          <div className="mb-8">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">{weekLabel}</p>
+            <h1 className="text-2xl font-semibold text-gray-900 leading-tight">{member.name}</h1>
+          </div>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-sm text-amber-800">
+            <p className="font-medium mb-1">This week is closed.</p>
+            <p>Submissions can only be edited during the active week.</p>
+          </div>
+          {existing && (
+            <div className="mt-6 space-y-4">
+              <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+                <p className="text-xs font-medium text-gray-500 mb-2">Mood</p>
+                <p className="text-sm text-gray-700">{existing.mood} — {MOOD_OPTIONS.find(o => o.value === existing.mood)?.label}</p>
+              </div>
+              <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+                <p className="text-xs font-medium text-gray-500 mb-2">Capacity</p>
+                <p className="text-sm text-gray-700">{existing.capacity} — {CAPACITY_OPTIONS.find(o => o.value === existing.capacity)?.label}</p>
+              </div>
+              {existing.category_responses && existing.category_responses.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  <div className="px-5 pt-4 pb-2 border-b border-gray-100">
+                    <h2 className="text-sm font-medium text-gray-700">Deal Pipeline</h2>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {existing.category_responses.map((cr) => {
+                      const cat = categories.find(c => c.id === cr.category_id);
+                      return (
+                        <div key={cr.category_id} className="px-5 py-3">
+                          <p className="text-sm font-medium text-gray-700">{cr.category_label || cat?.label}</p>
+                          {cr.days > 0 && <p className="text-xs text-gray-500 mt-0.5">{cr.days}d / {existing.working_days}d</p>}
+                          {cr.notes && <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">{cr.notes}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <div className="mt-6">
+            <a href={`/my-reviews?token=${token}`} className="inline-block rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              ← Back to my profile
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Success screen ──────────────────────────────────────────────────────────
 
   if (success) {
@@ -178,14 +239,9 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
           <h1 className="text-xl font-semibold text-gray-900 mb-1">
             {isUpdate ? 'Response updated' : 'Check-in submitted'}
           </h1>
-          <p className="text-sm text-gray-500 mb-1">
-            Thanks, {member.name.split(' ')[0]}.
-          </p>
+          <p className="text-sm text-gray-500 mb-1">Thanks, {member.name.split(' ')[0]}.</p>
           <p className="text-sm text-gray-400 mb-6">{weekLabel}</p>
-          <a
-            href={`/my-reviews?token=${token}`}
-            className="inline-block rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
+          <a href={`/my-reviews?token=${token}`} className="inline-block rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
             ← Back to my profile
           </a>
         </div>
@@ -194,6 +250,8 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
   }
 
   // ── Form ────────────────────────────────────────────────────────────────────
+
+  const totalAllocated = Object.values(categoryData).reduce((a, b) => a + b.days, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -244,12 +302,7 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
 
           {/* Mood */}
           <Section title="How are you feeling today?">
-            <RadioGroup
-              name="mood"
-              options={MOOD_OPTIONS}
-              value={mood}
-              onChange={setMood}
-            />
+            <RadioGroup name="mood" options={MOOD_OPTIONS} value={mood} onChange={setMood} />
           </Section>
 
           {/* Working days */}
@@ -274,62 +327,58 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-medium text-gray-700">Deal Pipeline</h2>
                 {workingDays > 0 && (() => {
-                  const totalAllocated = Object.values(dayFields).reduce((a, b) => a + b, 0);
                   const remaining = workingDays - totalAllocated;
                   return (
                     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      remaining === 0
-                        ? 'text-red-700 bg-red-50 border border-red-200'
-                        : remaining <= 0.5
-                        ? 'text-amber-700 bg-amber-50 border border-amber-200'
-                        : 'text-gray-500'
+                      remaining === 0 ? 'text-red-700 bg-red-50 border border-red-200'
+                      : remaining <= 0.5 ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                      : 'text-gray-500'
                     }`}>
                       {remaining}d remaining
                     </span>
                   );
                 })()}
               </div>
-              <p className="text-xs text-gray-400 mt-0.5">Notes optional — days default to 0</p>
+              <p className="text-xs text-gray-400 mt-0.5">Notes required · days default to 0</p>
             </div>
             <div className="divide-y divide-gray-100">
-              {DEAL_FIELDS.map(({ key, label, sub }) => {
-                const dayKey: DayKey = `${key}_days`;
-                const totalAllocated = Object.values(dayFields).reduce((a, b) => a + b, 0);
+              {categories.map((cat) => {
+                const data = categoryData[cat.id] ?? { notes: '', days: 0 };
                 const remaining = workingDays - totalAllocated;
-                const maxForBucket = Math.min(dayFields[dayKey] + remaining, workingDays);
+                const maxForBucket = Math.min(data.days + remaining, workingDays);
                 const opts = dayOptions(maxForBucket);
+                const hasError = !!fieldErrors[cat.id];
                 return (
-                  <div key={key} className="px-5 py-4">
+                  <div key={cat.id} className="px-5 py-4">
                     <div className="flex items-start justify-between gap-4 mb-1.5">
-                      <label className="text-sm text-gray-700">
-                        <span className="font-medium">{label}</span>
-                        <span className="text-gray-400"> — {sub}</span>
-                      </label>
+                      <label className="text-sm font-medium text-gray-700">{cat.label}</label>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <select
-                          value={dayFields[dayKey]}
-                          onChange={(e) => setDayField(dayKey, Number(e.target.value))}
+                          value={data.days}
+                          onChange={(e) => setCatDays(cat.id, Number(e.target.value))}
                           disabled={workingDays === 0}
                           className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                          {opts.map((v) => (
-                            <option key={v} value={v}>{formatDays(v)}d</option>
-                          ))}
+                          {opts.map((v) => <option key={v} value={v}>{v}d</option>)}
                         </select>
                         {workingDays > 0 && (
-                          <span className="text-xs text-gray-400 w-12 text-right">
-                            / {workingDays}d
-                          </span>
+                          <span className="text-xs text-gray-400 w-12 text-right">/ {workingDays}d</span>
                         )}
                       </div>
                     </div>
                     <textarea
-                      value={dealFields[key]}
-                      onChange={(e) => setDealField(key, e.target.value)}
+                      value={data.notes}
+                      onChange={(e) => {
+                        setCatNotes(cat.id, e.target.value);
+                        if (fieldErrors[cat.id] && e.target.value.trim()) {
+                          setFieldErrors((prev) => { const next = { ...prev }; delete next[cat.id]; return next; });
+                        }
+                      }}
                       rows={3}
                       placeholder="—"
-                      className="block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent focus:bg-white resize-y transition-colors"
+                      className={`block w-full rounded-md border px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent resize-y transition-colors ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50 focus:bg-white'}`}
                     />
+                    {hasError && <p className="text-xs text-red-600 mt-1">{fieldErrors[cat.id]}</p>}
                   </div>
                 );
               })}
@@ -338,12 +387,7 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
 
           {/* Capacity */}
           <Section title="Capacity this week">
-            <RadioGroup
-              name="capacity"
-              options={CAPACITY_OPTIONS}
-              value={capacity}
-              onChange={setCapacity}
-            />
+            <RadioGroup name="capacity" options={CAPACITY_OPTIONS} value={capacity} onChange={setCapacity} />
           </Section>
 
           {/* Error */}
@@ -379,12 +423,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function RadioGroup({
-  name,
-  options,
-  value,
-  onChange,
-}: {
+function RadioGroup({ name, options, value, onChange }: {
   name: string;
   options: { value: number; label: string }[];
   value: number | null;
@@ -393,10 +432,7 @@ function RadioGroup({
   return (
     <div className="space-y-2.5">
       {options.map((opt) => (
-        <label
-          key={opt.value}
-          className="flex items-center gap-3 cursor-pointer group"
-        >
+        <label key={opt.value} className="flex items-center gap-3 cursor-pointer group">
           <input
             type="radio"
             name={name}

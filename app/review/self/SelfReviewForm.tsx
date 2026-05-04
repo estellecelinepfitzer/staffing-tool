@@ -1,8 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { SELF_REVIEW_HEADLINE, SELF_GOALS_KEY, RATING_LABELS } from '@/lib/reviewQuestions';
-import type { CycleQuestion, MemberGoal } from '@/lib/db';
+import { SELF_REVIEW_HEADLINE, RATING_LABELS } from '@/lib/reviewQuestions';
+import type { CycleQuestion } from '@/lib/db';
+
+interface MemberGoalExtended {
+  id: number;
+  body: string;
+  description: string;
+  progress: number;
+  company_goal_id: number | null;
+}
 
 interface Props {
   cycleId: number;
@@ -12,7 +20,8 @@ interface Props {
   existingResponses: Record<string, string>;
   isEditable: boolean;
   questions: CycleQuestion[];
-  goals: MemberGoal[];
+  goals: MemberGoalExtended[];
+  goalScale: 'rating_5' | 'percent_100';
 }
 
 export default function SelfReviewForm({
@@ -23,23 +32,11 @@ export default function SelfReviewForm({
   isEditable,
   questions,
   goals,
+  goalScale,
 }: Props) {
-  // Build initial answers: goal progress/comments + question answers + legacy SELF_GOALS_KEY
   const [answers, setAnswers] = useState<Record<string, string | number>>(() => {
     const init: Record<string, string | number> = {};
-    // Legacy goals key for backwards compat
-    init[SELF_GOALS_KEY] = existingResponses[SELF_GOALS_KEY] ?? '';
-    // Dynamic goal responses
-    for (const goal of goals) {
-      const progressKey = `goal_progress_${goal.id}`;
-      const commentKey = `goal_comment_${goal.id}`;
-      const progressRaw = existingResponses[progressKey];
-      init[progressKey] = progressRaw !== undefined ? Number(progressRaw) : '';
-      init[commentKey] = existingResponses[commentKey] ?? '';
-    }
-    // Questions
     for (const q of questions) {
-      if (q.question_key === SELF_GOALS_KEY) continue; // handled above
       const raw = existingResponses[q.question_key];
       init[q.question_key] = q.question_type === 'rating' && raw !== undefined ? Number(raw) : (raw ?? '');
     }
@@ -82,7 +79,7 @@ export default function SelfReviewForm({
 
   async function handleSubmit() {
     const missing = questions.filter(
-      (q) => q.required === 1 && q.question_key !== 'goals_progress' && (answers[q.question_key] === '' || answers[q.question_key] === undefined),
+      (q) => q.required === 1 && (answers[q.question_key] === '' || answers[q.question_key] === undefined),
     );
     if (missing.length > 0) {
       setValidationError(`Please fill in all required fields (*): ${missing.map((q) => q.question_text).join(', ')}`);
@@ -91,14 +88,7 @@ export default function SelfReviewForm({
     setValidationError(null);
     setSubmitting(true);
     try {
-      // Save all fields
-      const allKeys: string[] = [];
-      for (const goal of goals) {
-        allKeys.push(`goal_progress_${goal.id}`, `goal_comment_${goal.id}`);
-      }
-      for (const q of questions) {
-        allKeys.push(q.question_key);
-      }
+      const allKeys = questions.map((q) => q.question_key);
       await Promise.all(allKeys.map((key) => saveField(key, answers[key] ?? '')));
       const res = await fetch('/api/review/submit', {
         method: 'POST',
@@ -137,9 +127,6 @@ export default function SelfReviewForm({
     );
   }
 
-  // Filter out the special goals_progress key from the questions list (it's shown via goals section)
-  const mainQuestions = questions.filter((q) => q.question_key !== SELF_GOALS_KEY);
-
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-2xl mx-auto">
@@ -150,94 +137,40 @@ export default function SelfReviewForm({
         </div>
 
         <div className="space-y-5">
-          {/* Dynamic goals section */}
+          {/* Goals reference (read-only) */}
           {goals.length > 0 && (
             <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-              <p className="text-sm font-medium text-gray-700 mb-4">Goals this cycle</p>
-              <div className="space-y-5">
-                {goals.map((goal) => {
-                  const progressKey = `goal_progress_${goal.id}`;
-                  const commentKey = `goal_comment_${goal.id}`;
-                  return (
-                    <div key={goal.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                      <p className="text-sm text-gray-800 mb-3 font-medium">{goal.body}</p>
-                      <div className="mb-3">
-                        <p className="text-xs font-medium text-gray-500 mb-2">Progress (1–5)</p>
-                        {isEditable ? (
-                          <div className="flex gap-3 flex-wrap">
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={progressKey}
-                                  value={n}
-                                  checked={answers[progressKey] === n}
-                                  onChange={() => handleRatingChange(progressKey, n)}
-                                  className="w-4 h-4 accent-gray-800"
-                                />
-                                <span className="text-xs text-gray-500 text-center max-w-[80px]">
-                                  {RATING_LABELS[n]}
-                                </span>
-                              </label>
-                            ))}
+              <p className="text-sm font-medium text-gray-700 mb-4">Your goals</p>
+              <div className="space-y-4">
+                {goals.map((goal) => (
+                  <div key={goal.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                    <p className="text-sm font-medium text-gray-800 mb-1">{goal.body}</p>
+                    {goal.description && (
+                      <p className="text-xs text-gray-500 mb-2">{goal.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs text-gray-400">Progress:</span>
+                      {goalScale === 'percent_100' ? (
+                        <>
+                          <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
+                            <div className="bg-gray-700 h-1.5 rounded-full" style={{ width: `${goal.progress}%` }} />
                           </div>
-                        ) : (
-                          <div className="text-sm text-gray-700">
-                            {answers[progressKey]
-                              ? RATING_LABELS[answers[progressKey] as number] ?? String(answers[progressKey])
-                              : <span className="text-gray-400">No response</span>}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium text-gray-500 mb-2">Comment</p>
-                        {isEditable ? (
-                          <textarea
-                            rows={3}
-                            className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent placeholder-gray-400"
-                            placeholder="Reflect on your progress toward this goal…"
-                            value={String(answers[commentKey] ?? '')}
-                            onChange={(e) => handleChange(commentKey, e.target.value)}
-                            onBlur={() => handleBlur(commentKey)}
-                          />
-                        ) : (
-                          <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                            {answers[commentKey] || <span className="text-gray-400">No response</span>}
-                          </div>
-                        )}
-                      </div>
+                          <span className="text-xs text-gray-500">{Math.round(goal.progress)}%</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-700">
+                          {goal.progress > 0 ? `${goal.progress} / 5` : <span className="text-gray-400">—</span>}
+                        </span>
+                      )}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Fallback: legacy free-text goals if no dynamic goals */}
-          {goals.length === 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Goals &amp; progress
-              </label>
-              {isEditable ? (
-                <textarea
-                  rows={5}
-                  className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent placeholder-gray-400"
-                  placeholder="Reflect on your goals and progress over the past year…"
-                  value={String(answers[SELF_GOALS_KEY])}
-                  onChange={(e) => handleChange(SELF_GOALS_KEY, e.target.value)}
-                  onBlur={() => handleBlur(SELF_GOALS_KEY)}
-                />
-              ) : (
-                <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {answers[SELF_GOALS_KEY] || <span className="text-gray-400">No response</span>}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Dynamic questions */}
-          {mainQuestions.map((q) => (
+          {/* Questions */}
+          {questions.map((q) => (
             <div key={q.question_key} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {q.question_text}

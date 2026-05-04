@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
-import { getMemberByToken, getCheckin, getMemberGoals } from '@/lib/db';
-import { getISOWeek, formatWeekLabel } from '@/lib/weeks';
+import { getMemberByToken, getCheckin, getMemberGoals, getActiveCategories, getCheckinResponses } from '@/lib/db';
+import { getISOWeek, formatWeekLabel, getISOWeekDateRange } from '@/lib/weeks';
 import { verifySignedToken, COOKIE_NAME } from '@/lib/auth';
 import CheckinForm from './CheckinForm';
 import PasswordGate from './PasswordGate';
@@ -50,6 +50,11 @@ export default function CheckinPage({ searchParams }: PageProps) {
   const existing = getCheckin(token, week, year);
   const today = now.toISOString().split('T')[0];
 
+  // Determine if this week is in the past (locked)
+  const { end: weekEnd } = getISOWeekDateRange(week, year);
+  const nowUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekLocked = nowUtc > weekEnd.getTime();
+
   // Find goals for this member
   let goals: MemberGoal[] = [];
   try {
@@ -58,16 +63,25 @@ export default function CheckinPage({ searchParams }: PageProps) {
     goals = [];
   }
 
+  const categories = getActiveCategories();
+
+  // Attach category_responses to existing checkin
+  const existingWithResponses = existing
+    ? { ...existing, category_responses: getCheckinResponses(existing.id) }
+    : null;
+
   return (
     <CheckinForm
       member={member}
-      existing={existing ?? null}
+      existing={existingWithResponses}
       isoWeek={week}
       isoYear={year}
       today={today}
       weekLabel={formatWeekLabel(week, year)}
       token={token}
       goals={goals}
+      categories={categories}
+      weekLocked={weekLocked}
     />
   );
 }

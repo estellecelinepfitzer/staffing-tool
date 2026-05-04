@@ -5,21 +5,25 @@ import { getISOWeek, formatWeekLabel, getPrevWeek, getNextWeek, type ISOWeek } f
 
 // ─── API response types ───────────────────────────────────────────────────────
 
+interface CategoryResponse {
+  category_id: number;
+  category_label: string;
+  days: number;
+  notes: string;
+}
+
+interface Category {
+  id: number;
+  label: string;
+  sort_order: number;
+}
+
 interface CheckinData {
   mood: number;
   capacity: number;
-  sourcing: string;
-  converting: string;
-  execution: string;
-  portfolio_exits: string;
-  portfolio_other: string;
   working_days: number;
-  sourcing_days: number;
-  converting_days: number;
-  execution_days: number;
-  portfolio_exits_days: number;
-  portfolio_other_days: number;
   submitted_at: string;
+  category_responses: CategoryResponse[];
 }
 
 interface MemberRow {
@@ -34,6 +38,7 @@ interface DashboardData {
   team: MemberRow[];
   submittedCount: number;
   totalCount: number;
+  categories: Category[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -45,14 +50,6 @@ const CAPACITY_LABELS: Record<number, string> = {
   4: 'Fully staffed',
   5: 'Crunch',
 };
-
-const COLUMNS = [
-  { key: 'sourcing',        label: 'Sourcing',   sub: 'IC0',        dayKey: 'sourcing_days'        },
-  { key: 'converting',      label: 'Converting', sub: 'IC1',        dayKey: 'converting_days'      },
-  { key: 'execution',       label: 'Execution',  sub: 'IC2–3',      dayKey: 'execution_days'       },
-  { key: 'portfolio_exits', label: 'Portfolio',  sub: 'Exits',      dayKey: 'portfolio_exits_days' },
-  { key: 'portfolio_other', label: 'Portfolio',  sub: 'Other',      dayKey: 'portfolio_other_days' },
-] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,10 +64,6 @@ function capacityClass(score: number): string {
   if (score <= 3)  return 'text-green-700 bg-green-50 border-green-200';
   if (score === 4) return 'text-amber-700 bg-amber-50 border-amber-200';
   return 'text-red-700 bg-red-50 border-red-200';
-}
-
-function formatDays(v: number): string {
-  return v % 1 === 0 ? String(v) : String(v);
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -110,6 +103,11 @@ export default function DashboardClient() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [currentWeek, fetchData]);
 
+  function downloadCsv() {
+    if (!data) return;
+    window.location.href = `/api/dashboard/csv?week=${data.week}&year=${data.year}`;
+  }
+
   const prevWeek = getPrevWeek(currentWeek.week, currentWeek.year);
   const nextWeek = getNextWeek(currentWeek.week, currentWeek.year);
   const currentLabel = formatWeekLabel(currentWeek.week, currentWeek.year);
@@ -128,33 +126,33 @@ export default function DashboardClient() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/mtip-logo.png" alt="MTIP" className="h-7 w-auto shrink-0" />
               <div className="flex items-center gap-2">
-              <button
-                onClick={() => setCurrentWeek(prevWeek)}
-                className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                aria-label="Previous week"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <h1 className="text-sm font-semibold text-gray-900 truncate">{currentLabel}</h1>
-              <button
-                onClick={() => setCurrentWeek(nextWeek)}
-                className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                aria-label="Next week"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-              {!isCurrentWeek && (
                 <button
-                  onClick={() => setCurrentWeek(getISOWeek(new Date()))}
-                  className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors ml-1"
+                  onClick={() => setCurrentWeek(prevWeek)}
+                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  aria-label="Previous week"
                 >
-                  Today
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
                 </button>
-              )}
+                <h1 className="text-sm font-semibold text-gray-900 truncate">{currentLabel}</h1>
+                <button
+                  onClick={() => setCurrentWeek(nextWeek)}
+                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  aria-label="Next week"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                {!isCurrentWeek && (
+                  <button
+                    onClick={() => setCurrentWeek(getISOWeek(new Date()))}
+                    className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors ml-1"
+                  >
+                    Today
+                  </button>
+                )}
               </div>
             </div>
 
@@ -168,6 +166,17 @@ export default function DashboardClient() {
               {lastRefresh && (
                 <span className="hidden sm:inline text-xs text-gray-300">Refreshes every 60s</span>
               )}
+              <button
+                onClick={downloadCsv}
+                disabled={!data}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 transition-colors"
+                title="Download CSV for this week"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                CSV
+              </button>
               <a
                 href="/admin"
                 className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
@@ -205,17 +214,16 @@ export default function DashboardClient() {
                 <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider w-36 min-w-[130px]">
                   Capacity
                 </th>
-                {COLUMNS.map((col) => (
-                  <th key={col.key} className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider min-w-[160px]">
-                    {col.label}
-                    <span className="font-normal text-gray-400 normal-case tracking-normal ml-1">— {col.sub}</span>
+                {data.categories.map((cat) => (
+                  <th key={cat.id} className="text-left px-4 py-3 font-medium text-gray-500 text-xs uppercase tracking-wider min-w-[160px]">
+                    {cat.label}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {data.team.map((member) => (
-                <TeamRow key={member.token} member={member} week={data.week} year={data.year} />
+                <TeamRow key={member.token} member={member} week={data.week} year={data.year} categories={data.categories} />
               ))}
             </tbody>
           </table>
@@ -227,11 +235,9 @@ export default function DashboardClient() {
 
 // ─── Table row ────────────────────────────────────────────────────────────────
 
-function TeamRow({ member, week, year }: { member: MemberRow; week: number; year: number }) {
+function TeamRow({ member, week, year, categories }: { member: MemberRow; week: number; year: number; categories: Category[] }) {
   const { checkin } = member;
   const firstName = member.name.split(' ')[0];
-  const nowWeek = getISOWeek(new Date());
-  const isCurrentWeek = week === nowWeek.week && year === nowWeek.year;
   const checkinHref = `/my-reviews?token=${member.token}&week=${week}&year=${year}`;
 
   return (
@@ -243,18 +249,12 @@ function TeamRow({ member, week, year }: { member: MemberRow; week: number; year
           {checkin && (
             <span className={`w-2 h-2 rounded-full shrink-0 ${moodDot(checkin.mood)}`} title={`Mood: ${checkin.mood}`} />
           )}
-          <a
-            href={checkinHref}
-            className="font-medium text-gray-900 hover:underline"
-            title="Open personal portal"
-          >
+          <a href={checkinHref} className="font-medium text-gray-900 hover:underline" title="Open personal portal">
             {firstName}
           </a>
         </div>
         {checkin ? (
-          <p className="text-xs text-gray-400 mt-0.5 ml-4">
-            {checkin.working_days}d this week
-          </p>
+          <p className="text-xs text-gray-400 mt-0.5 ml-4">{checkin.working_days}d this week</p>
         ) : (
           <p className="text-xs text-gray-400 mt-0.5">Not submitted</p>
         )}
@@ -271,26 +271,24 @@ function TeamRow({ member, week, year }: { member: MemberRow; week: number; year
         )}
       </td>
 
-      {/* Bucket columns */}
-      {COLUMNS.map((col) => {
-        const text = checkin ? (checkin[col.key as keyof CheckinData] as string) : '';
-        const days = checkin ? (checkin[col.dayKey as keyof CheckinData] as number) : 0;
-        const workingDays = checkin?.working_days ?? 0;
-        const hasText = !!text?.trim();
-        const hasDays = checkin && workingDays > 0;
+      {/* Per-category columns */}
+      {categories.map((cat) => {
+        const resp = checkin?.category_responses.find((r) => r.category_id === cat.id);
+        const hasText = !!resp?.notes?.trim();
+        const hasDays = checkin && checkin.working_days > 0;
 
         return (
-          <td key={col.key} className="px-4 py-3">
+          <td key={cat.id} className="px-4 py-3">
             {checkin ? (
               <div className="space-y-1">
-                {hasDays && (
+                {hasDays && resp && (
                   <p className="text-xs font-medium text-gray-500">
-                    {formatDays(days)}
-                    <span className="text-gray-300 font-normal"> / {workingDays}d</span>
+                    {resp.days}
+                    <span className="text-gray-300 font-normal"> / {checkin.working_days}d</span>
                   </p>
                 )}
                 {hasText ? (
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{text}</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{resp!.notes}</p>
                 ) : (
                   <p className="text-sm text-gray-300">—</p>
                 )}

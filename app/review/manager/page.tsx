@@ -9,8 +9,9 @@ import {
   getSubmittedPeerAssignmentsForSubject,
   getResponsesForAssignments,
   getSignoff,
-  getMemberGoals,
+  getMemberGoalsExtended,
   getCycleQuestions,
+  getGoalScale,
 } from '@/lib/db';
 import type { ReviewAssignment, ReviewResponse } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
@@ -92,13 +93,24 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
     return <InfoScreen title="Cycle not found" body="This review cycle does not exist." />;
   }
 
-  if (cycle.status !== 'manager_review_open') {
-    return (
-      <InfoScreen
-        title="Not open"
-        body="Manager reviews are not open yet."
-      />
-    );
+  // Manager assignment
+  const managerAssignment = getAssignmentByKey(cycleId, token, subjectToken, 'manager');
+  if (!managerAssignment) {
+    return <InfoScreen title="Assignment not found" body="No manager assignment found for this review." />;
+  }
+
+  // Check release/signoff status before access gate
+  const signoff = getSignoff(cycleId, subjectToken);
+  const isSignedOff = !!signoff?.manager_signed_at;
+  const isReleased = !!signoff?.released_at;
+
+  // Access control: allow during manager_review_open OR when this review was released
+  // Block entirely if cycle is closed
+  if (cycle.status === 'closed') {
+    return <InfoScreen title="Cycle closed" body="This review cycle is now closed." />;
+  }
+  if (cycle.status !== 'manager_review_open' && !isReleased) {
+    return <InfoScreen title="Not open" body="Manager reviews are not open yet." />;
   }
 
   // Peer submissions (show whatever is available)
@@ -110,11 +122,6 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
   const selfResponseMap = responsesToMap(selfResponses);
   const selfGoals = (selfResponseMap['goals_progress'] as string) ?? '';
 
-  // Manager assignment
-  const managerAssignment = getAssignmentByKey(cycleId, token, subjectToken, 'manager');
-  if (!managerAssignment) {
-    return <InfoScreen title="Assignment not found" body="No manager assignment found for this review." />;
-  }
   const managerResponses = getResponses(managerAssignment.id);
   const managerResponseMap = responsesToMap(managerResponses) as Record<string, string | number>;
 
@@ -139,13 +146,10 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
     responses: responsesToMap(peerResponsesByAssignment.get(a.id) ?? []) as Record<string, string | number>,
   }));
 
-  const signoff = getSignoff(cycleId, subjectToken);
-  const isSignedOff = !!signoff?.manager_signed_at;
-  const isReleased = !!signoff?.released_at;
-
-  const goals = getMemberGoals(subjectToken);
+  const goals = getMemberGoalsExtended(subjectToken);
   const questions = getCycleQuestions(cycleId, 'manager');
   const selfQuestions = getCycleQuestions(cycleId, 'self');
+  const goalScale = getGoalScale();
 
   return (
     <ManagerReviewForm
@@ -159,12 +163,13 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
       selfReviewResponses={selfResponseMap as Record<string, string>}
       peerReviews={peerReviews}
       selfGoals={selfGoals}
-      isEditable={managerAssignment.status !== 'submitted' && !isSignedOff}
+      isEditable={managerAssignment.status !== 'submitted' && !isSignedOff && cycle.status === 'manager_review_open'}
       isSignedOff={isSignedOff}
       isReleased={isReleased}
       goals={goals}
       questions={questions}
       selfQuestions={selfQuestions}
+      goalScale={goalScale}
     />
   );
 }

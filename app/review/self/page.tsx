@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { verifySignedToken, COOKIE_NAME } from '@/lib/auth';
-import { getTeamMember, getCycle, getAssignmentByKey, getResponses, getMemberGoals, getCycleQuestions } from '@/lib/db';
+import { getTeamMember, getCycle, getAssignmentByKey, getResponses, getMemberGoalsExtended, getCycleQuestions, getGoalScale } from '@/lib/db';
 import type { ReviewResponse } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
 import SelfReviewForm from './SelfReviewForm';
@@ -72,8 +72,9 @@ export default async function SelfReviewPage({ searchParams }: PageProps) {
     cycle.status === 'self_review_open' ||
     cycle.status === 'peer_review_open';
 
-  const goals = getMemberGoals(token);
+  const goals = getMemberGoalsExtended(token);
   const questions = getCycleQuestions(cycleId, 'self');
+  const goalScale = getGoalScale();
 
   return (
     <SelfReviewForm
@@ -85,6 +86,7 @@ export default async function SelfReviewPage({ searchParams }: PageProps) {
       isEditable={isEditable}
       goals={goals}
       questions={questions}
+      goalScale={goalScale}
     />
   );
 }
