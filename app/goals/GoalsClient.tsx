@@ -1,60 +1,72 @@
 'use client';
 
-import { useState } from 'react';
-import type { GoalScale } from '@/lib/db';
+import { useState, useEffect } from 'react';
 
-interface CompanyGoal { id: number; title: string; description: string; sort_order: number; created_at: string; }
-interface PersonalGoal { id: number; member_token: string; body: string; description: string; company_goal_id: number | null; progress: number; sort_order: number; created_at: string; }
+type Scale = 'rating_5' | 'percent_100';
+
+interface CompanyGoal { id: number; title: string; description: string; sort_order: number; created_at: string; scale: Scale; }
+interface PersonalGoal { id: number; member_token: string; body: string; description: string; company_goal_id: number | null; progress: number; sort_order: number; created_at: string; scale: Scale; }
 interface TeamMember { token: string; name: string; }
 
 interface Props {
   companyGoals: CompanyGoal[];
   personalGoals: PersonalGoal[];
   members: TeamMember[];
-  goalScale: GoalScale;
 }
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
+// Normalize any goal progress to 0–100 for rollup math
+function toPercent(progress: number, scale: Scale): number {
+  return scale === 'rating_5' ? (progress / 5) * 100 : progress;
+}
 
 function rollup(goals: PersonalGoal[]): number {
   if (goals.length === 0) return 0;
-  return Math.round(goals.reduce((s, g) => s + g.progress, 0) / goals.length);
+  const avg = goals.reduce((s, g) => s + toPercent(g.progress, g.scale), 0) / goals.length;
+  return Math.round(avg);
 }
 
-function ProgressBar({ value, scale }: { value: number; scale: GoalScale }) {
-  const pct = scale === 'percent_100' ? value : Math.round((value / 5) * 100);
+function ScaleToggle({ value, onChange }: { value: Scale; onChange: (s: Scale) => void }) {
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className="h-full bg-gray-800 rounded-full transition-all" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs text-gray-500 shrink-0 w-10 text-right">
-        {scale === 'percent_100' ? `${value}%` : `${value}/5`}
-      </span>
+    <div className="flex gap-1">
+      <button
+        type="button"
+        onClick={() => onChange('percent_100')}
+        className={`rounded px-2 py-1 text-xs font-medium transition-colors border ${value === 'percent_100' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+      >
+        0–100%
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('rating_5')}
+        className={`rounded px-2 py-1 text-xs font-medium transition-colors border ${value === 'rating_5' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+      >
+        1–5
+      </button>
     </div>
   );
 }
 
 // ─── main ─────────────────────────────────────────────────────────────────────
 
-export default function GoalsClient({ companyGoals: initCG, personalGoals: initPG, members, goalScale: initScale }: Props) {
+export default function GoalsClient({ companyGoals: initCG, personalGoals: initPG, members }: Props) {
   const [companyGoals, setCompanyGoals] = useState<CompanyGoal[]>(initCG);
   const [personalGoals, setPersonalGoals] = useState<PersonalGoal[]>(initPG);
-  const [goalScale, setGoalScaleState] = useState<GoalScale>(initScale);
   const [error, setError] = useState<string | null>(null);
 
   // Company goal form
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [newCompanyTitle, setNewCompanyTitle] = useState('');
   const [newCompanyDesc, setNewCompanyDesc] = useState('');
+  const [newCompanyScale, setNewCompanyScale] = useState<Scale>('percent_100');
   const [addingCompany, setAddingCompany] = useState(false);
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
 
   // Personal goal form
-  const [showAddPersonal, setShowAddPersonal] = useState<string | null>(null); // member token
+  const [showAddPersonal, setShowAddPersonal] = useState<string | null>(null);
   const [newPersonalTitle, setNewPersonalTitle] = useState('');
   const [newPersonalDesc, setNewPersonalDesc] = useState('');
   const [newPersonalCompanyId, setNewPersonalCompanyId] = useState<number | null>(null);
+  const [newPersonalScale, setNewPersonalScale] = useState<Scale>('percent_100');
   const [addingPersonal, setAddingPersonal] = useState(false);
 
   const memberMap = new Map(members.map((m) => [m.token, m.name]));
@@ -70,12 +82,13 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
       const res = await fetch('/api/admin/goals/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description: newCompanyDesc.trim(), sort_order: sortOrder }),
+        body: JSON.stringify({ title, description: newCompanyDesc.trim(), sort_order: sortOrder, scale: newCompanyScale }),
       });
       const data = await res.json() as { id: number };
-      setCompanyGoals((p) => [...p, { id: data.id, title, description: newCompanyDesc.trim(), sort_order: sortOrder, created_at: new Date().toISOString() }]);
+      setCompanyGoals((p) => [...p, { id: data.id, title, description: newCompanyDesc.trim(), sort_order: sortOrder, scale: newCompanyScale, created_at: new Date().toISOString() }]);
       setNewCompanyTitle('');
       setNewCompanyDesc('');
+      setNewCompanyScale('percent_100');
       setShowAddCompany(false);
     } catch { setError('Failed to add company goal'); }
     finally { setAddingCompany(false); }
@@ -114,41 +127,30 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
       const newGoal: PersonalGoal = {
         id: data.id, member_token: memberToken, body: title,
         description: newPersonalDesc.trim(), company_goal_id: newPersonalCompanyId,
-        progress: 0, sort_order: 0, created_at: new Date().toISOString(),
+        progress: 0, scale: newPersonalScale, sort_order: 0, created_at: new Date().toISOString(),
       };
-      // Set description and company_goal_id
-      if (newPersonalDesc.trim() || newPersonalCompanyId) {
-        await fetch(`/api/admin/members/${memberToken}/goals/${data.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ description: newPersonalDesc.trim(), company_goal_id: newPersonalCompanyId }),
-        });
-      }
+      await fetch(`/api/admin/members/${memberToken}/goals/${data.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: newPersonalDesc.trim(), company_goal_id: newPersonalCompanyId, scale: newPersonalScale }),
+      });
       setPersonalGoals((p) => [...p, newGoal]);
       setNewPersonalTitle('');
       setNewPersonalDesc('');
       setNewPersonalCompanyId(null);
+      setNewPersonalScale('percent_100');
       setShowAddPersonal(null);
     } catch { setError('Failed to add personal goal'); }
     finally { setAddingPersonal(false); }
   }
 
-  async function handleUpdatePersonalProgress(goal: PersonalGoal, progress: number) {
+  async function handleUpdatePersonalGoal(goal: PersonalGoal, patch: Partial<PersonalGoal>) {
     await fetch(`/api/admin/members/${goal.member_token}/goals/${goal.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ progress }),
+      body: JSON.stringify(patch),
     });
-    setPersonalGoals((p) => p.map((g) => g.id === goal.id ? { ...g, progress } : g));
-  }
-
-  async function handleLinkPersonalGoal(goal: PersonalGoal, companyGoalId: number | null) {
-    await fetch(`/api/admin/members/${goal.member_token}/goals/${goal.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ company_goal_id: companyGoalId }),
-    });
-    setPersonalGoals((p) => p.map((g) => g.id === goal.id ? { ...g, company_goal_id: companyGoalId } : g));
+    setPersonalGoals((p) => p.map((g) => g.id === goal.id ? { ...g, ...patch } : g));
   }
 
   async function handleDeletePersonalGoal(goal: PersonalGoal) {
@@ -157,16 +159,6 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
     setPersonalGoals((p) => p.filter((g) => g.id !== goal.id));
   }
 
-  async function handleScaleChange(scale: GoalScale) {
-    await fetch('/api/admin/settings/goal-scale', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scale }),
-    });
-    setGoalScaleState(scale);
-  }
-
-  // ── Unlinked personal goals ────────────────────────────────────────────────
   const unlinkedGoals = personalGoals.filter((g) => !g.company_goal_id);
 
   return (
@@ -191,30 +183,6 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
             {error} <button className="underline ml-2" onClick={() => setError(null)}>Dismiss</button>
           </div>
         )}
-
-        {/* Scale setting */}
-        <div className="bg-white rounded-xl border border-gray-200 px-5 py-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-700">Goal progress scale</p>
-              <p className="text-xs text-gray-400 mt-0.5">Applies to all personal goals and the self-review form.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleScaleChange('rating_5')}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${goalScale === 'rating_5' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-              >
-                1–5 Rating
-              </button>
-              <button
-                onClick={() => handleScaleChange('percent_100')}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${goalScale === 'percent_100' ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-              >
-                0–100%
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Company goals */}
         <div className="mb-8">
@@ -246,6 +214,10 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                   placeholder="Description (optional)"
                   className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gray-800"
                 />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Progress scale:</span>
+                  <ScaleToggle value={newCompanyScale} onChange={setNewCompanyScale} />
+                </div>
               </div>
               <div className="flex gap-2">
                 <button
@@ -268,7 +240,6 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
               const isEditing = editingCompanyId === cg.id;
               return (
                 <div key={cg.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  {/* Company goal header */}
                   <div className="px-5 py-4">
                     {isEditing ? (
                       <CompanyGoalEditForm
@@ -281,10 +252,15 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900">{cg.title}</p>
                           {cg.description && <p className="text-xs text-gray-500 mt-0.5">{cg.description}</p>}
-                          {goalScale === 'percent_100' && linked.length > 0 && (
+                          {linked.length > 0 && (
                             <div className="mt-2">
-                              <p className="text-xs text-gray-400 mb-1">Weighted progress ({linked.length} goal{linked.length !== 1 ? 's' : ''})</p>
-                              <ProgressBar value={avg} scale={goalScale} />
+                              <p className="text-xs text-gray-400 mb-1">Avg progress ({linked.length} goal{linked.length !== 1 ? 's' : ''})</p>
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-gray-800 rounded-full transition-all" style={{ width: `${avg}%` }} />
+                                </div>
+                                <span className="text-xs text-gray-500 shrink-0 w-10 text-right">{avg}%</span>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -296,7 +272,6 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                     )}
                   </div>
 
-                  {/* Linked personal goals */}
                   {linked.length > 0 && (
                     <div className="border-t border-gray-100 divide-y divide-gray-100">
                       {linked.map((pg) => (
@@ -305,9 +280,9 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                           goal={pg}
                           memberName={memberMap.get(pg.member_token) ?? pg.member_token}
                           companyGoals={companyGoals}
-                          goalScale={goalScale}
-                          onProgressChange={(v) => handleUpdatePersonalProgress(pg, v)}
-                          onLink={(cgId) => handleLinkPersonalGoal(pg, cgId)}
+                          onProgressChange={(v) => handleUpdatePersonalGoal(pg, { progress: v })}
+                          onScaleChange={(s) => handleUpdatePersonalGoal(pg, { scale: s })}
+                          onLink={(cgId) => handleUpdatePersonalGoal(pg, { company_goal_id: cgId })}
                           onDelete={() => handleDeletePersonalGoal(pg)}
                         />
                       ))}
@@ -355,7 +330,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                         placeholder="Description (optional)"
                         className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gray-800"
                       />
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <select
                           value={newPersonalCompanyId ?? ''}
                           onChange={(e) => setNewPersonalCompanyId(e.target.value ? Number(e.target.value) : null)}
@@ -364,6 +339,10 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                           <option value="">— no company goal —</option>
                           {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}
                         </select>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-gray-500">Scale:</span>
+                          <ScaleToggle value={newPersonalScale} onChange={setNewPersonalScale} />
+                        </div>
                         <button
                           onClick={() => handleAddPersonalGoal(member.token)}
                           disabled={addingPersonal || !newPersonalTitle.trim()}
@@ -387,9 +366,9 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                           goal={pg}
                           memberName=""
                           companyGoals={companyGoals}
-                          goalScale={goalScale}
-                          onProgressChange={(v) => handleUpdatePersonalProgress(pg, v)}
-                          onLink={(cgId) => handleLinkPersonalGoal(pg, cgId)}
+                          onProgressChange={(v) => handleUpdatePersonalGoal(pg, { progress: v })}
+                          onScaleChange={(s) => handleUpdatePersonalGoal(pg, { scale: s })}
+                          onLink={(cgId) => handleUpdatePersonalGoal(pg, { company_goal_id: cgId })}
                           onDelete={() => handleDeletePersonalGoal(pg)}
                         />
                       ))}
@@ -401,7 +380,6 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
           </div>
         </div>
 
-        {/* Unlinked personal goals summary */}
         {unlinkedGoals.length > 0 && (
           <div className="mt-6 text-xs text-gray-400 text-center">
             {unlinkedGoals.length} personal goal{unlinkedGoals.length !== 1 ? 's' : ''} not linked to any company goal
@@ -415,12 +393,13 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
 // ─── sub-components ───────────────────────────────────────────────────────────
 
 function CompanyGoalEditForm({ goal, onSave, onCancel }: {
-  goal: { title: string; description: string };
-  onSave: (updates: { title: string; description: string }) => void;
+  goal: CompanyGoal;
+  onSave: (updates: Partial<CompanyGoal>) => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState(goal.title);
   const [desc, setDesc] = useState(goal.description);
+  const [scale, setScale] = useState<Scale>(goal.scale);
   return (
     <div className="space-y-2">
       <input
@@ -437,28 +416,39 @@ function CompanyGoalEditForm({ goal, onSave, onCancel }: {
         placeholder="Description (optional)"
         className="block w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-gray-800"
       />
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-500">Progress scale:</span>
+        <ScaleToggle value={scale} onChange={setScale} />
+      </div>
       <div className="flex gap-2">
-        <button onClick={() => onSave({ title: title.trim(), description: desc.trim() })} disabled={!title.trim()} className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors">Save</button>
+        <button onClick={() => onSave({ title: title.trim(), description: desc.trim(), scale })} disabled={!title.trim()} className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors">Save</button>
         <button onClick={onCancel} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
       </div>
     </div>
   );
 }
 
-function PersonalGoalRow({ goal, memberName, companyGoals, goalScale, onProgressChange, onLink, onDelete }: {
+function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onScaleChange, onLink, onDelete }: {
   goal: PersonalGoal;
   memberName: string;
   companyGoals: { id: number; title: string }[];
-  goalScale: GoalScale;
   onProgressChange: (v: number) => void;
+  onScaleChange: (s: Scale) => void;
   onLink: (cgId: number | null) => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [localProgress, setLocalProgress] = useState(goal.progress);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Sync local slider with parent state (handles updates from other views)
+  useEffect(() => {
+    if (!isDragging) setLocalProgress(goal.progress);
+  }, [goal.progress, isDragging]);
 
   function handleProgressCommit(v: number) {
     setLocalProgress(v);
+    setIsDragging(false);
     onProgressChange(v);
   }
 
@@ -479,7 +469,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, goalScale, onProgress
       </div>
 
       {/* Progress input */}
-      {goalScale === 'percent_100' ? (
+      {goal.scale === 'percent_100' ? (
         <div className="flex items-center gap-3">
           <input
             type="range"
@@ -487,7 +477,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, goalScale, onProgress
             max={100}
             step={5}
             value={localProgress}
-            onChange={(e) => setLocalProgress(Number(e.target.value))}
+            onChange={(e) => { setIsDragging(true); setLocalProgress(Number(e.target.value)); }}
             onMouseUp={(e) => handleProgressCommit(Number((e.target as HTMLInputElement).value))}
             onTouchEnd={(e) => handleProgressCommit(Number((e.target as HTMLInputElement).value))}
             className="flex-1 accent-gray-800"
@@ -508,18 +498,24 @@ function PersonalGoalRow({ goal, memberName, companyGoals, goalScale, onProgress
         </div>
       )}
 
-      {/* Link to company goal */}
+      {/* Edit panel */}
       {editing && (
-        <div className="mt-2">
-          <label className="text-xs text-gray-500 block mb-1">Link to company goal</label>
-          <select
-            value={goal.company_goal_id ?? ''}
-            onChange={(e) => onLink(e.target.value ? Number(e.target.value) : null)}
-            className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800"
-          >
-            <option value="">— none —</option>
-            {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}
-          </select>
+        <div className="mt-3 space-y-2 pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Scale:</span>
+            <ScaleToggle value={goal.scale} onChange={onScaleChange} />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Link to company goal</label>
+            <select
+              value={goal.company_goal_id ?? ''}
+              onChange={(e) => onLink(e.target.value ? Number(e.target.value) : null)}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800"
+            >
+              <option value="">— none —</option>
+              {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}
+            </select>
+          </div>
         </div>
       )}
     </div>

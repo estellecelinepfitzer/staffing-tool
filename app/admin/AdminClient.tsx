@@ -1,17 +1,15 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { TeamMemberRow, ReviewCycle } from '@/lib/db';
 
-interface MemberGoal { id: number; member_token: string; body: string; sort_order: number; created_at: string; }
 interface Category { id: number; label: string; sort_order: number; active: number; created_at: string; }
 
 interface Props {
   members: TeamMemberRow[];
   cycles: ReviewCycle[];
   categories: Category[];
-  goalScale: 'rating_5' | 'percent_100';
 }
 
 function slugify(name: string): string {
@@ -22,11 +20,9 @@ function slugify(name: string): string {
     .slice(0, 20);
 }
 
-export default function AdminClient({ members: initialMembers, cycles, categories: initialCategories, goalScale: initialGoalScale }: Props) {
+export default function AdminClient({ members: initialMembers, cycles, categories: initialCategories }: Props) {
   const [members, setMembers] = useState<TeamMemberRow[]>(initialMembers);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
-  const [goalScale, setGoalScale] = useState<'rating_5' | 'percent_100'>(initialGoalScale);
-  const [goalScaleSaving, setGoalScaleSaving] = useState(false);
   const [showCategoryPanel, setShowCategoryPanel] = useState(false);
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
@@ -37,65 +33,6 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
   const [passwordInput, setPasswordInput] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
-
-  // Goals state
-  const [goalsOpenFor, setGoalsOpenFor] = useState<string | null>(null);
-  const [goalsByMember, setGoalsByMember] = useState<Record<string, MemberGoal[]>>({});
-  const [goalsLoading, setGoalsLoading] = useState<Record<string, boolean>>({});
-  const [newGoalText, setNewGoalText] = useState('');
-  const [savingGoal, setSavingGoal] = useState(false);
-
-  const loadGoals = useCallback(async (token: string) => {
-    setGoalsLoading((p) => ({ ...p, [token]: true }));
-    try {
-      const res = await fetch(`/api/admin/members/${token}/goals`);
-      const data = await res.json() as { goals: MemberGoal[] };
-      setGoalsByMember((p) => ({ ...p, [token]: data.goals }));
-    } finally {
-      setGoalsLoading((p) => ({ ...p, [token]: false }));
-    }
-  }, []);
-
-  function toggleGoals(token: string) {
-    if (goalsOpenFor === token) {
-      setGoalsOpenFor(null);
-    } else {
-      setGoalsOpenFor(token);
-      loadGoals(token);
-    }
-  }
-
-  async function handleAddGoal(token: string) {
-    if (!newGoalText.trim()) return;
-    setSavingGoal(true);
-    try {
-      const res = await fetch(`/api/admin/members/${token}/goals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: newGoalText.trim() }),
-      });
-      const data = await res.json() as { id: number };
-      const newGoal: MemberGoal = { id: data.id, member_token: token, body: newGoalText.trim(), sort_order: 0, created_at: new Date().toISOString() };
-      setGoalsByMember((p) => ({ ...p, [token]: [...(p[token] ?? []), newGoal] }));
-      setNewGoalText('');
-    } finally {
-      setSavingGoal(false);
-    }
-  }
-
-  async function handleUpdateGoal(token: string, goalId: number, body: string) {
-    await fetch(`/api/admin/members/${token}/goals/${goalId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ body }),
-    });
-    setGoalsByMember((p) => ({ ...p, [token]: (p[token] ?? []).map((g) => g.id === goalId ? { ...g, body } : g) }));
-  }
-
-  async function handleDeleteGoal(token: string, goalId: number) {
-    await fetch(`/api/admin/members/${token}/goals/${goalId}`, { method: 'DELETE' });
-    setGoalsByMember((p) => ({ ...p, [token]: (p[token] ?? []).filter((g) => g.id !== goalId) }));
-  }
 
   // Add member form state
   const [showAdd, setShowAdd] = useState(false);
@@ -292,21 +229,6 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
     }
   }
 
-  async function handleGoalScaleChange(scale: 'rating_5' | 'percent_100') {
-    setGoalScaleSaving(true);
-    try {
-      await fetch('/api/admin/settings/goal-scale', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scale }),
-      });
-      setGoalScale(scale);
-    } catch {
-      setError('Failed to update goal scale');
-    } finally {
-      setGoalScaleSaving(false);
-    }
-  }
 
   async function handleRenameCategory(id: number) {
     const label = editingCategoryLabel.trim();
@@ -394,21 +316,26 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
           </div>
         )}
 
-        {/* Category settings panel */}
-        <div className="mb-4">
+        {/* Nav buttons */}
+        <div className="flex items-center gap-2 mb-4">
           <button
             onClick={() => setShowCategoryPanel((p) => !p)}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Manage categories
+            Manage staffing categories
             <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showCategoryPanel ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
             </svg>
           </button>
+          <a
+            href="/goals"
+            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            Manage goals →
+          </a>
+        </div>
+
+        <div className="mb-4">
 
           {showCategoryPanel && (
             <div className="mt-2 bg-white rounded-xl border border-gray-200 px-5 py-4">
@@ -510,42 +437,6 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
           )}
         </div>
 
-        {/* Goal scale setting */}
-        <div className="mb-4 bg-white rounded-xl border border-gray-200 px-5 py-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div>
-              <p className="text-sm font-medium text-gray-700">Goal progress scale</p>
-              <p className="text-xs text-gray-400 mt-0.5">Applies to all goals and review forms.</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleGoalScaleChange('rating_5')}
-                disabled={goalScaleSaving}
-                className={[
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border disabled:opacity-40',
-                  goalScale === 'rating_5'
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50',
-                ].join(' ')}
-              >
-                1–5 Rating
-              </button>
-              <button
-                onClick={() => handleGoalScaleChange('percent_100')}
-                disabled={goalScaleSaving}
-                className={[
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border disabled:opacity-40',
-                  goalScale === 'percent_100'
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'border-gray-200 text-gray-600 hover:bg-gray-50',
-                ].join(' ')}
-              >
-                0–100%
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Team members table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
           <table className="w-full text-sm">
@@ -554,19 +445,15 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Email</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Manager</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-500">Goals</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Check-in</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Password</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Active</th>
               </tr>
             </thead>
             <tbody>
-              {members.map((member, idx) => {
+              {members.map((member) => {
                 const isActive = !!member.active;
-                const isGoalsOpen = goalsOpenFor === member.token;
-                const goals = goalsByMember[member.token] ?? [];
                 return (
-                  <>
                   <tr
                     key={member.token}
                     className={[
@@ -603,16 +490,6 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                             </option>
                           ))}
                       </select>
-                    </td>
-
-                    {/* Goals */}
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => toggleGoals(member.token)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors border ${isGoalsOpen ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-                      >
-                        Goals {goalsLoading[member.token] ? '…' : goals.length > 0 ? `(${goals.length})` : ''}
-                      </button>
                     </td>
 
                     {/* Check-in toggle */}
@@ -707,49 +584,6 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
                       </div>
                     </td>
                   </tr>
-                  {/* Goals inline panel */}
-                  {isGoalsOpen && (
-                    <tr key={`${member.token}-goals`} className="border-b border-gray-100 bg-blue-50/30">
-                      <td colSpan={7} className="px-4 py-4">
-                        <div className="max-w-2xl">
-                          {/* Goal list */}
-                          <div className="space-y-2 mb-3">
-                            {goals.length === 0 && !goalsLoading[member.token] && (
-                              <p className="text-xs text-gray-400">No goals set yet.</p>
-                            )}
-                            {goals.map((goal) => (
-                              <GoalEditRow
-                                key={goal.id}
-                                goal={goal}
-                                onSave={(body) => handleUpdateGoal(member.token, goal.id, body)}
-                                onDelete={() => handleDeleteGoal(member.token, goal.id)}
-                              />
-                            ))}
-                          </div>
-
-                          {/* Add goal */}
-                          <div className="flex gap-2 items-start">
-                            <input
-                              type="text"
-                              value={newGoalText}
-                              onChange={(e) => setNewGoalText(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') handleAddGoal(member.token); }}
-                              placeholder="Add a goal…"
-                              className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
-                            />
-                            <button
-                              onClick={() => handleAddGoal(member.token)}
-                              disabled={savingGoal || !newGoalText.trim()}
-                              className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
-                            >
-                              {savingGoal ? '…' : 'Add'}
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                  </>
                 );
               })}
             </tbody>
@@ -879,25 +713,3 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
   );
 }
 
-function GoalEditRow({ goal, onSave, onDelete }: { goal: MemberGoal; onSave: (body: string) => void; onDelete: () => void }) {
-  const [text, setText] = useState(goal.body);
-  const saved = useState(goal.body)[0];
-  return (
-    <div className="flex gap-2 items-center">
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => { if (text.trim() && text.trim() !== saved) onSave(text.trim()); }}
-        className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800"
-      />
-      <button
-        onClick={onDelete}
-        className="text-gray-300 hover:text-red-500 transition-colors text-lg leading-none shrink-0"
-        title="Delete goal"
-      >
-        ×
-      </button>
-    </div>
-  );
-}

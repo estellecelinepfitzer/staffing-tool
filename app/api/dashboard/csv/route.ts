@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { getCheckinMembers, getWeekCheckins, getActiveCategories, getCheckinResponsesForWeek } from '@/lib/db';
-import { getISOWeek, formatWeekLabel } from '@/lib/weeks';
+import { getISOWeek } from '@/lib/weeks';
 
 const MOOD_LABELS: Record<number, string> = { 1: 'Not able to work', 2: 'Not good', 3: 'Fine', 4: 'Good', 5: 'Great' };
 const CAPACITY_LABELS: Record<number, string> = { 1: 'Vacation', 2: 'Significant capacity', 3: 'Some capacity', 4: 'Fully staffed', 5: 'Crunch' };
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   const checkinByToken = new Map(checkins.map((c) => [c.member_token, c]));
-  const weekLabel = formatWeekLabel(week, year);
+  const weekLabel = `Week ${week}`;
 
   // Header row
   const headers = [

@@ -9,9 +9,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   if (!isAdminAuthenticated()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const body = await req.json() as { title?: string; description?: string; sort_order?: number };
+  const body = await req.json() as { title?: string; description?: string; sort_order?: number; scale?: string };
   const title = body.title?.trim();
   if (!title) return NextResponse.json({ error: 'title is required' }, { status: 400 });
-  const id = createCompanyGoal(title, body.description?.trim() ?? '', body.sort_order ?? 999);
+  const id = createCompanyGoal(title, body.description?.trim() ?? '', body.sort_order ?? 999, body.scale ?? 'percent_100');
   return NextResponse.json({ id });
 }

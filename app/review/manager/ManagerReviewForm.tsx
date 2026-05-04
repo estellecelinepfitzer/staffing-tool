@@ -10,6 +10,7 @@ interface MemberGoalExtended {
   description: string;
   progress: number;
   company_goal_id: number | null;
+  scale: 'rating_5' | 'percent_100';
 }
 
 interface PeerReview {
@@ -34,7 +35,6 @@ interface Props {
   questions: CycleQuestion[];
   selfQuestions: CycleQuestion[];
   goals: MemberGoalExtended[];
-  goalScale: 'rating_5' | 'percent_100';
 }
 
 function BackToProfile({ token }: { token: string }) {
@@ -108,7 +108,6 @@ export default function ManagerReviewForm({
   questions,
   selfQuestions,
   goals,
-  goalScale,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, string | number>>(() => {
     const init: Record<string, string | number> = {};
@@ -288,7 +287,7 @@ export default function ManagerReviewForm({
                     )}
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-xs text-gray-400">Progress:</span>
-                      {goalScale === 'percent_100' ? (
+                      {goal.scale === 'percent_100' ? (
                         <>
                           <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
                             <div className="bg-gray-700 h-1.5 rounded-full" style={{ width: `${goal.progress}%` }} />

@@ -11,7 +11,6 @@ import {
   getSignoff,
   getMemberGoalsExtended,
   getCycleQuestions,
-  getGoalScale,
 } from '@/lib/db';
 import type { ReviewAssignment, ReviewResponse } from '@/lib/db';
 import PasswordGate from '@/app/checkin/PasswordGate';
@@ -149,7 +148,6 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
   const goals = getMemberGoalsExtended(subjectToken);
   const questions = getCycleQuestions(cycleId, 'manager');
   const selfQuestions = getCycleQuestions(cycleId, 'self');
-  const goalScale = getGoalScale();
 
   return (
     <ManagerReviewForm
@@ -169,7 +167,6 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
       goals={goals}
       questions={questions}
       selfQuestions={selfQuestions}
-      goalScale={goalScale}
     />
   );
 }

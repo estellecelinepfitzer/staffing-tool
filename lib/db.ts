@@ -202,6 +202,8 @@ function initSchema(db: Database.Database) {
   addColumnIfMissing(db, 'member_goals', 'company_goal_id', 'INTEGER');
   addColumnIfMissing(db, 'member_goals', 'description',     'TEXT NOT NULL DEFAULT \'\'');
   addColumnIfMissing(db, 'member_goals', 'progress',        'REAL NOT NULL DEFAULT 0');
+  addColumnIfMissing(db, 'member_goals', 'scale',           "TEXT NOT NULL DEFAULT 'percent_100'");
+  addColumnIfMissing(db, 'company_goals', 'scale',          "TEXT NOT NULL DEFAULT 'percent_100'");
 
   // ── Company-level goals ──
   db.exec(`
@@ -1110,6 +1112,7 @@ export interface CompanyGoal {
   description: string;
   sort_order: number;
   created_at: string;
+  scale: 'rating_5' | 'percent_100';
 }
 
 export function getAllCompanyGoals(): CompanyGoal[] {
@@ -1118,19 +1121,20 @@ export function getAllCompanyGoals(): CompanyGoal[] {
     .all() as CompanyGoal[];
 }
 
-export function createCompanyGoal(title: string, description: string, sortOrder: number): number {
+export function createCompanyGoal(title: string, description: string, sortOrder: number, scale: string = 'percent_100'): number {
   const result = getDb()
-    .prepare('INSERT INTO company_goals (title, description, sort_order, created_at) VALUES (?, ?, ?, ?)')
-    .run(title, description, sortOrder, new Date().toISOString());
+    .prepare('INSERT INTO company_goals (title, description, sort_order, scale, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(title, description, sortOrder, scale, new Date().toISOString());
   return result.lastInsertRowid as number;
 }
 
-export function updateCompanyGoal(id: number, data: { title?: string; description?: string; sort_order?: number }): void {
+export function updateCompanyGoal(id: number, data: { title?: string; description?: string; sort_order?: number; scale?: string }): void {
   const fields: string[] = [];
   const values: unknown[] = [];
   if (data.title !== undefined)      { fields.push('title = ?');      values.push(data.title); }
   if (data.description !== undefined){ fields.push('description = ?'); values.push(data.description); }
   if (data.sort_order !== undefined) { fields.push('sort_order = ?'); values.push(data.sort_order); }
+  if (data.scale !== undefined)      { fields.push('scale = ?');      values.push(data.scale); }
   if (!fields.length) return;
   values.push(id);
   getDb().prepare(`UPDATE company_goals SET ${fields.join(', ')} WHERE id = ?`).run(...values);
@@ -1148,6 +1152,7 @@ export interface MemberGoalExtended extends MemberGoal {
   company_goal_id: number | null;
   description: string;
   progress: number;
+  scale: 'rating_5' | 'percent_100';
 }
 
 export function getMemberGoalsExtended(memberToken: string): MemberGoalExtended[] {
@@ -1172,6 +1177,10 @@ export function updateMemberGoalCompanyLink(id: number, companyGoalId: number | 
 
 export function updateMemberGoalDescription(id: number, description: string): void {
   getDb().prepare('UPDATE member_goals SET description = ? WHERE id = ?').run(description, id);
+}
+
+export function updateMemberGoalScale(id: number, scale: 'rating_5' | 'percent_100'): void {
+  getDb().prepare('UPDATE member_goals SET scale = ? WHERE id = ?').run(scale, id);
 }
 
 export function upsertCheckinResponse(

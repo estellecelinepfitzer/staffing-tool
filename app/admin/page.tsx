@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { isAdminAuthenticated } from '@/lib/adminAuth';
-import { getAllTeamMembers, getAllCycles, getAllCategories, getGoalScale } from '@/lib/db';
+import { getAllTeamMembers, getAllCycles, getAllCategories } from '@/lib/db';
 import AdminLogin from './AdminLogin';
 import AdminClient from './AdminClient';
 
@@ -13,7 +13,6 @@ export default function AdminPage() {
   const members = getAllTeamMembers();
   const cycles = getAllCycles();
   const categories = getAllCategories().filter((c) => c.active);
-  const goalScale = getGoalScale();
 
-  return <AdminClient members={members} cycles={cycles} categories={categories} goalScale={goalScale} />;
+  return <AdminClient members={members} cycles={cycles} categories={categories} />;
 }
