@@ -480,7 +480,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
             onChange={(e) => { setIsDragging(true); setLocalProgress(Number(e.target.value)); }}
             onMouseUp={(e) => handleProgressCommit(Number((e.target as HTMLInputElement).value))}
             onTouchEnd={(e) => handleProgressCommit(Number((e.target as HTMLInputElement).value))}
-            className="flex-1 accent-[#0080C9]"
+            className="flex-1 accent-[#0080C8]"
           />
           <span className="text-xs text-gray-500 w-10 text-right">{localProgress}%</span>
         </div>

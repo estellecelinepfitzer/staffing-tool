@@ -152,7 +152,7 @@ export default function PeerReviewForm({
                           value={n}
                           checked={answers[q.question_key] === n}
                           onChange={() => handleRatingChange(q.question_key, n)}
-                          className="w-4 h-4 accent-[#0080C9]"
+                          className="w-4 h-4 accent-[#0080C8]"
                         />
                         <span className="text-xs text-gray-500 text-center max-w-[80px]">
                           {RATING_LABELS[n]}

@@ -206,7 +206,7 @@ export default function SelfReviewForm({
                                 step={5}
                                 value={state.progress}
                                 onChange={(e) => handleGoalProgressChange(goal, Number(e.target.value))}
-                                className="flex-1 accent-[#0080C9]"
+                                className="flex-1 accent-[#0080C8]"
                               />
                               <span className="text-xs text-gray-600 w-10 text-right">{Math.round(state.progress)}%</span>
                             </div>
@@ -219,20 +219,25 @@ export default function SelfReviewForm({
                             </div>
                           )
                         ) : isEditable ? (
-                          <div className="flex gap-3 flex-wrap">
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name={`goal_progress_${goal.id}`}
-                                  value={n}
-                                  checked={state.progress === n}
-                                  onChange={() => handleGoalProgressChange(goal, n)}
-                                  className="w-4 h-4 accent-[#0080C9]"
-                                />
-                                <span className="text-xs text-gray-500 text-center max-w-[60px]">{RATING_LABELS[n]}</span>
-                              </label>
-                            ))}
+                          <div>
+                            <div className="flex gap-5">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
+                                  <input
+                                    type="radio"
+                                    name={`goal_progress_${goal.id}`}
+                                    value={n}
+                                    checked={state.progress === n}
+                                    onChange={() => handleGoalProgressChange(goal, n)}
+                                    className="w-4 h-4 accent-[#0080C8]"
+                                  />
+                                  <span className="text-xs text-gray-400">{n}</span>
+                                </label>
+                              ))}
+                            </div>
+                            {state.progress > 0 && (
+                              <p className="text-xs text-gray-500 mt-1.5">{RATING_LABELS[state.progress]}</p>
+                            )}
                           </div>
                         ) : (
                           <span className="text-xs text-gray-700">
@@ -284,7 +289,7 @@ export default function SelfReviewForm({
                           value={n}
                           checked={answers[q.question_key] === n}
                           onChange={() => handleRatingChange(q.question_key, n)}
-                          className="w-4 h-4 accent-[#0080C9]"
+                          className="w-4 h-4 accent-[#0080C8]"
                         />
                         <span className="text-xs text-gray-500 text-center max-w-[80px]">
                           {RATING_LABELS[n]}

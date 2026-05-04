@@ -13,14 +13,15 @@ const config: Config = {
       },
       colors: {
         brand: {
-          blue:   '#0080C9',
-          teal:   '#69C0AC',
-          cyan:   '#5FC4E1',
+          space:  '#154194',
+          blue:   '#0080C8',
+          teal:   '#69BFAC',
+          cyan:   '#5FC3E1',
           yellow: '#F9D900',
         },
-        // Override gray-50 to MTIP brand page background
+        // Override gray-50 to MTIP official page background
         gray: {
-          50: '#EBF1F6',
+          50: '#D9E4EB',
         },
       },
     },
