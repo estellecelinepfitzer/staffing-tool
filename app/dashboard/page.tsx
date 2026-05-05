@@ -9,27 +9,36 @@ export const dynamic = 'force-dynamic';
 
 export default function DashboardPage() {
   const cookieStore = cookies();
-  const session = cookieStore.get(DASHBOARD_COOKIE_NAME);
-  const verified = session ? verifySignedToken(session.value) : null;
 
-  if (verified !== 'dashboard') {
-    return <DashboardPasswordGate />;
-  }
-
-  // Determine if the current user is an admin (via their personal session cookie)
+  // Check personal session first — any logged-in user can access the dashboard
   let isAdmin = false;
   const userSession = cookieStore.get(COOKIE_NAME);
   if (userSession) {
     const memberToken = verifySignedToken(userSession.value);
     if (memberToken) {
       const member = getTeamMember(memberToken);
-      if (member?.role === 'admin') isAdmin = true;
+      if (member) {
+        // Valid personal session → grant dashboard access
+        isAdmin = member.role === 'admin';
+        return (
+          <Suspense fallback={<LoadingScreen />}>
+            <DashboardClient isAdmin={isAdmin} />
+          </Suspense>
+        );
+      }
     }
+  }
+
+  // Fall back to legacy shared dashboard password
+  const session = cookieStore.get(DASHBOARD_COOKIE_NAME);
+  const verified = session ? verifySignedToken(session.value) : null;
+  if (verified !== 'dashboard') {
+    return <DashboardPasswordGate />;
   }
 
   return (
     <Suspense fallback={<LoadingScreen />}>
-      <DashboardClient isAdmin={isAdmin} />
+      <DashboardClient isAdmin={false} />
     </Suspense>
   );
 }

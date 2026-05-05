@@ -568,17 +568,30 @@ export function getCheckinMembers(): TeamMemberRow[] {
 
 export function deleteTeamMember(token: string): void {
   const db = getDb();
-  // Delete responses for any assignment involving this member
+  // Children of checkins (FK: checkin_responses.checkin_id → checkins.id)
+  db.prepare(`
+    DELETE FROM checkin_responses
+    WHERE checkin_id IN (SELECT id FROM checkins WHERE member_token = ?)
+  `).run(token);
+  // Children of review_assignments (FK: manager_review_shares.assignment_id → review_assignments.id)
+  db.prepare(`
+    DELETE FROM manager_review_shares
+    WHERE assignment_id IN (
+      SELECT id FROM review_assignments WHERE subject_token = ? OR reviewer_token = ?
+    )
+  `).run(token, token);
+  // Children of review_assignments (FK: review_responses.assignment_id → review_assignments.id)
   db.prepare(`
     DELETE FROM review_responses
     WHERE assignment_id IN (
-      SELECT id FROM review_assignments
-      WHERE subject_token = ? OR reviewer_token = ?
+      SELECT id FROM review_assignments WHERE subject_token = ? OR reviewer_token = ?
     )
   `).run(token, token);
   db.prepare('DELETE FROM review_assignments WHERE subject_token = ? OR reviewer_token = ?').run(token, token);
   db.prepare('DELETE FROM review_signoffs   WHERE subject_token = ?').run(token);
   db.prepare('DELETE FROM checkins          WHERE member_token = ?').run(token);
+  db.prepare('DELETE FROM member_goals      WHERE member_token = ?').run(token);
+  db.prepare('DELETE FROM passwords         WHERE member_token = ?').run(token);
   db.prepare('DELETE FROM team_members      WHERE token = ?').run(token);
 }
 
