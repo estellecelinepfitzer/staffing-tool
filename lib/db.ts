@@ -7,6 +7,9 @@ import {
   PEER_REVIEW_QUESTIONS,
   MANAGER_REVIEW_QUESTIONS,
 } from './reviewQuestions';
+import { hashUserPassword, verifyUserPassword } from './auth';
+
+export { verifyUserPassword };
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_PATH = path.join(DATA_DIR, 'standup.db');
@@ -98,6 +101,7 @@ function initSchema(db: Database.Database) {
   addColumnIfMissing(db, 'team_members', 'password',      'TEXT NOT NULL DEFAULT \'\'');
   addColumnIfMissing(db, 'team_members', 'manager_token', 'TEXT NOT NULL DEFAULT \'\'');
   addColumnIfMissing(db, 'team_members', 'active',        'INTEGER NOT NULL DEFAULT 1');
+  addColumnIfMissing(db, 'team_members', 'role',          "TEXT NOT NULL DEFAULT 'member'");
 
   // Seed team_members on first run (or upsert if already exists to keep in sync)
   const upsertMember = db.prepare(`
@@ -122,6 +126,28 @@ function initSchema(db: Database.Database) {
     }
   });
   seedAll();
+
+  // Set admin roles
+  db.prepare("UPDATE team_members SET role = 'admin' WHERE token IN ('christoph-kau', 'estelle-pfz')").run();
+
+  // Seed password hashes on first run (only if passwords table is empty)
+  const passwordCount = (db.prepare('SELECT COUNT(*) as n FROM passwords').get() as { n: number }).n;
+  if (passwordCount === 0) {
+    const insertHash = db.prepare(
+      'INSERT OR IGNORE INTO passwords (member_token, password_hash, updated_at) VALUES (?, ?, ?)',
+    );
+    const now = new Date().toISOString();
+    const seedTx = db.transaction(() => {
+      for (const m of SEED_MEMBERS) {
+        insertHash.run(m.token, hashUserPassword(m.password), now);
+      }
+    });
+    seedTx();
+    console.log('[init] Password hashes seeded. Default credentials:');
+    for (const m of SEED_MEMBERS) {
+      console.log(`  ${m.email}  /  ${m.password}`);
+    }
+  }
 
   // ── Review cycles ──
   db.exec(`
@@ -373,6 +399,7 @@ export interface TeamMemberRow {
   manager_token: string;
   active: number;
   checkin: number;
+  role: string;
 }
 
 export type CycleStatus =
@@ -544,6 +571,31 @@ export function deleteTeamMember(token: string): void {
   db.prepare('DELETE FROM review_signoffs   WHERE subject_token = ?').run(token);
   db.prepare('DELETE FROM checkins          WHERE member_token = ?').run(token);
   db.prepare('DELETE FROM team_members      WHERE token = ?').run(token);
+}
+
+export function getTeamMemberByEmail(email: string): TeamMemberRow | undefined {
+  return getDb()
+    .prepare('SELECT * FROM team_members WHERE LOWER(email) = LOWER(?) AND active = 1')
+    .get(email) as TeamMemberRow | undefined;
+}
+
+export function getUserPasswordHash(memberToken: string): string | null {
+  const row = getDb()
+    .prepare('SELECT password_hash FROM passwords WHERE member_token = ?')
+    .get(memberToken) as { password_hash: string } | undefined;
+  return row?.password_hash ?? null;
+}
+
+export function setUserPasswordHash(memberToken: string, hash: string): void {
+  getDb()
+    .prepare(`
+      INSERT INTO passwords (member_token, password_hash, updated_at)
+      VALUES (?, ?, ?)
+      ON CONFLICT(member_token) DO UPDATE SET
+        password_hash = excluded.password_hash,
+        updated_at    = excluded.updated_at
+    `)
+    .run(memberToken, hash, new Date().toISOString());
 }
 
 export function upsertTeamMember(data: Omit<TeamMemberRow, 'active'>): void {

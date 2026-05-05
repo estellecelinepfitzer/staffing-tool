@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'token, name, email and password are required' }, { status: 400 });
   }
 
-  upsertTeamMember({ token, name, email, password, manager_token: '', checkin: 1 });
+  upsertTeamMember({ token, name, email, password, manager_token: '', checkin: 1, role: 'member' });
   const member = getTeamMember(token);
   return NextResponse.json({ member });
 }
