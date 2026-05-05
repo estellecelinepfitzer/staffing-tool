@@ -105,6 +105,28 @@ export default function PeerReviewForm({
     }
   }
 
+  if (saved) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <h1 className="text-lg font-semibold text-gray-900 mb-1">Peer review submitted</h1>
+          <p className="text-sm text-gray-500 mb-6">Thank you. Your peer review has been submitted successfully.</p>
+          <a
+            href={`/my-reviews?token=${token}`}
+            className="inline-block rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            ← Back to my profile
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   const pdfHref = managerToken
     ? `/review/manager/print?cycle=${cycleId}&token=${managerToken}&subject=${subjectToken}`
     : null;
@@ -186,19 +208,13 @@ export default function PeerReviewForm({
               {validationError && (
                 <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{validationError}</p>
               )}
-              {saved ? (
-                <div className="rounded-xl bg-green-50 border border-green-200 px-5 py-3 text-sm text-green-800 text-center">
-                  Saved. Your review is stored and will be shared with the manager.
-                </div>
-              ) : (
-                <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                >
-                  {saving ? 'Saving…' : 'Save peer review'}
-                </button>
-              )}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {saving ? 'Saving…' : 'Save peer review'}
+              </button>
             </div>
           )}
         </div>

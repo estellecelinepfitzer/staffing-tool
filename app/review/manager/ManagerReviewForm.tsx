@@ -520,7 +520,13 @@ export default function ManagerReviewForm({
           )}
 
           {/* Download manager review PDF — bottom */}
-          <div className="pb-8">
+          <div className="pb-8 space-y-3">
+            <a
+              href={`/my-reviews?token=${managerToken}`}
+              className="block w-full text-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              ← Back to my profile
+            </a>
             <a
               href={managerPdfHref}
               target="_blank"
