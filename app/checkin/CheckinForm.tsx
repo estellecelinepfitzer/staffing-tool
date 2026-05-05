@@ -120,7 +120,8 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
 
     const errors: Record<number, string> = {};
     for (const cat of categories) {
-      if (!categoryData[cat.id]?.notes.trim()) {
+      const data = categoryData[cat.id];
+      if ((data?.days ?? 0) > 0 && !data?.notes.trim()) {
         errors[cat.id] = 'Required — please add at least a brief note.';
       }
     }
