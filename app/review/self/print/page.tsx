@@ -8,6 +8,7 @@ import {
   getAssignmentByKey,
   getResponses,
   getCycleQuestions,
+  getMemberGoalsExtended,
 } from '@/lib/db';
 import type { ReviewResponse } from '@/lib/db';
 import { RATING_LABELS } from '@/lib/reviewQuestions';
@@ -52,6 +53,7 @@ export default function SelfReviewPrintPage({ searchParams }: PageProps) {
 
   const responses = responsesToMap(getResponses(selfAssignment.id));
   const questions = getCycleQuestions(cycleId, 'self');
+  const goals = getMemberGoalsExtended(subjectToken);
 
   const today = new Date().toLocaleDateString('en-CH', { day: '2-digit', month: 'long', year: 'numeric' });
 
@@ -69,6 +71,8 @@ export default function SelfReviewPrintPage({ searchParams }: PageProps) {
           .label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
           .value { color: #111; line-height: 1.5; }
           .rating { display: inline-block; background: #f3f4f6; border-radius: 6px; padding: 2px 10px; font-weight: 600; }
+          .goal { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+          .goal-title { font-weight: 600; margin-bottom: 8px; font-size: 13px; }
           @media print {
             .no-print { display: none !important; }
             body { padding: 20px; }
@@ -80,6 +84,33 @@ export default function SelfReviewPrintPage({ searchParams }: PageProps) {
 
         <h1>Self-Review — {subject.name}</h1>
         <p className="meta">{cycle.name} &nbsp;·&nbsp; {today}</p>
+
+        {goals.length > 0 && (
+          <>
+            <h2>Goals</h2>
+            {goals.map((goal) => (
+              <div key={goal.id} className="goal">
+                <div className="goal-title">{goal.body}</div>
+                <div className="field">
+                  <div className="label">Progress</div>
+                  <div className="value">
+                    {goal.scale === 'percent_100'
+                      ? `${Math.round(goal.progress)}%`
+                      : goal.progress > 0
+                        ? <span className="rating">{goal.progress} — {RATING_LABELS[goal.progress] ?? ''}</span>
+                        : <span style={{ color: '#9ca3af' }}>Not rated</span>}
+                  </div>
+                </div>
+                {goal.progress_comment && (
+                  <div className="field">
+                    <div className="label">Comment</div>
+                    <div className="value" style={{ whiteSpace: 'pre-wrap' }}>{goal.progress_comment}</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
 
         <h2>Self-Assessment</h2>
         {questions.map((q) => {

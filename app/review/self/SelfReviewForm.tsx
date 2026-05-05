@@ -4,6 +4,20 @@ import { useState } from 'react';
 import { SELF_REVIEW_HEADLINE, RATING_LABELS } from '@/lib/reviewQuestions';
 import type { CycleQuestion } from '@/lib/db';
 
+interface MemberGoalExtended {
+  id: number;
+  body: string;
+  description: string;
+  progress: number;
+  progress_comment: string;
+  scale: 'rating_5' | 'percent_100';
+}
+
+interface GoalState {
+  progress: number;
+  comment: string;
+}
+
 interface Props {
   cycleId: number;
   token: string;
@@ -12,6 +26,7 @@ interface Props {
   existingResponses: Record<string, string>;
   isEditable: boolean;
   questions: CycleQuestion[];
+  goals: MemberGoalExtended[];
   managerToken?: string;
   subjectToken?: string;
 }
@@ -24,6 +39,7 @@ export default function SelfReviewForm({
   existingResponses,
   isEditable,
   questions,
+  goals,
   managerToken,
   subjectToken,
 }: Props) {
@@ -35,6 +51,12 @@ export default function SelfReviewForm({
     }
     return init;
   });
+
+  const [goalStates, setGoalStates] = useState<Record<number, GoalState>>(() =>
+    Object.fromEntries(
+      goals.map((g) => [g.id, { progress: g.progress ?? 0, comment: g.progress_comment ?? '' }]),
+    ),
+  );
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +80,18 @@ export default function SelfReviewForm({
     }
   }
 
+  async function saveGoal(goalId: number, state: GoalState) {
+    try {
+      await fetch(`/api/review/goals/${goalId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ progress: state.progress, progress_comment: state.comment }),
+      });
+    } catch {
+      // silent failure
+    }
+  }
+
   function handleChange(key: string, value: string | number) {
     setAnswers((prev) => ({ ...prev, [key]: value }));
   }
@@ -69,6 +103,20 @@ export default function SelfReviewForm({
   async function handleRatingChange(key: string, value: number) {
     setAnswers((prev) => ({ ...prev, [key]: value }));
     await saveField(key, value);
+  }
+
+  async function handleGoalProgressChange(goalId: number, value: number) {
+    const next = { ...goalStates[goalId], progress: value };
+    setGoalStates((prev) => ({ ...prev, [goalId]: next }));
+    await saveGoal(goalId, next);
+  }
+
+  function handleGoalCommentChange(goalId: number, value: string) {
+    setGoalStates((prev) => ({ ...prev, [goalId]: { ...prev[goalId], comment: value } }));
+  }
+
+  async function handleGoalCommentBlur(goalId: number) {
+    await saveGoal(goalId, goalStates[goalId]);
   }
 
   async function handleSubmit() {
@@ -83,7 +131,10 @@ export default function SelfReviewForm({
     setSubmitting(true);
     try {
       const allKeys = questions.map((q) => q.question_key);
-      await Promise.all(allKeys.map((key) => saveField(key, answers[key] ?? '')));
+      await Promise.all([
+        ...allKeys.map((key) => saveField(key, answers[key] ?? '')),
+        ...goals.map((g) => saveGoal(g.id, goalStates[g.id])),
+      ]);
       const res = await fetch('/api/review/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -147,6 +198,95 @@ export default function SelfReviewForm({
         </div>
 
         <div className="space-y-5">
+
+          {/* ── Goals — first section ── */}
+          {goals.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+              <p className="text-sm font-medium text-gray-700 mb-4">Goals</p>
+              <div className="space-y-6">
+                {goals.map((goal) => {
+                  const state = goalStates[goal.id] ?? { progress: 0, comment: '' };
+                  return (
+                    <div key={goal.id} className="border-b border-gray-100 pb-6 last:border-0 last:pb-0">
+                      <p className="text-sm font-medium text-gray-800 mb-0.5">{goal.body}</p>
+                      {goal.description && (
+                        <p className="text-xs text-gray-500 mb-3">{goal.description}</p>
+                      )}
+
+                      {/* Progress input */}
+                      <div className="mb-3">
+                        <p className="text-xs font-medium text-gray-500 mb-2">Progress</p>
+                        {goal.scale === 'percent_100' ? (
+                          isEditable ? (
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="range" min={0} max={100} step={5}
+                                value={state.progress}
+                                onChange={(e) => handleGoalProgressChange(goal.id, Number(e.target.value))}
+                                className="flex-1 accent-[#0080C8]"
+                              />
+                              <span className="text-xs text-gray-600 w-10 text-right">{Math.round(state.progress)}%</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
+                                <div className="bg-brand-teal h-1.5 rounded-full" style={{ width: `${state.progress}%` }} />
+                              </div>
+                              <span className="text-xs text-gray-500">{Math.round(state.progress)}%</span>
+                            </div>
+                          )
+                        ) : isEditable ? (
+                          <div>
+                            <div className="flex gap-5">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
+                                  <input
+                                    type="radio" name={`goal_${goal.id}`} value={n}
+                                    checked={state.progress === n}
+                                    onChange={() => handleGoalProgressChange(goal.id, n)}
+                                    className="w-4 h-4 accent-[#0080C8]"
+                                  />
+                                  <span className="text-xs text-gray-400">{n}</span>
+                                </label>
+                              ))}
+                            </div>
+                            {state.progress > 0 && (
+                              <p className="text-xs text-gray-500 mt-1.5">{RATING_LABELS[state.progress]}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-700">
+                            {state.progress > 0 ? `${state.progress} / 5` : <span className="text-gray-400">—</span>}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Comment */}
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">Comment</p>
+                        {isEditable ? (
+                          <textarea
+                            rows={2}
+                            className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
+                            placeholder="Describe your progress on this goal…"
+                            value={state.comment}
+                            onChange={(e) => handleGoalCommentChange(goal.id, e.target.value)}
+                            onBlur={() => handleGoalCommentBlur(goal.id)}
+                          />
+                        ) : (
+                          <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                            {state.comment || <span className="text-gray-400">No comment</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Review questions ── */}
           {questions.map((q) => (
             <div key={q.question_key} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
