@@ -36,25 +36,13 @@ interface Props {
   isReleased: boolean;
   questions: CycleQuestion[];
   selfQuestions: CycleQuestion[];
+  peerQuestions: CycleQuestion[];
   goals: MemberGoalExtended[];
 }
 
 interface ManagerGoalState {
   managerProgress: number | null;
   managerComment: string;
-}
-
-function BackToProfile({ token }: { token: string }) {
-  return (
-    <div className="pt-2 pb-4">
-      <a
-        href={`/my-reviews?token=${token}`}
-        className="block w-full text-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        ← Back to my profile
-      </a>
-    </div>
-  );
 }
 
 function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
@@ -99,10 +87,10 @@ export default function ManagerReviewForm({
   selfReviewResponses,
   peerReviews,
   isEditable,
-  isSignedOff,
   isReleased: isReleasedProp,
   questions,
   selfQuestions,
+  peerQuestions,
   goals,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, string | number>>(() => {
@@ -120,10 +108,10 @@ export default function ManagerReviewForm({
     ),
   );
 
-  const [submitting, setSubmitting] = useState(false);
-  const [signedOff, setSignedOff] = useState(isSignedOff);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [released, setReleased] = useState(isReleasedProp);
   const [releasing, setReleasing] = useState(false);
+  const [releaseConfirmStep, setReleaseConfirmStep] = useState(false);
 
   async function saveField(key: string, value: string | number) {
     try {
@@ -155,6 +143,13 @@ export default function ManagerReviewForm({
     }
   }
 
+  async function saveAllFields() {
+    await Promise.all([
+      ...questions.map((q) => saveField(q.question_key, answers[q.question_key] ?? '')),
+      ...goals.map((g) => saveManagerGoal(g.id, managerGoalStates[g.id])),
+    ]);
+  }
+
   function updateManagerGoal(goalId: number, patch: Partial<ManagerGoalState>) {
     setManagerGoalStates((prev) => ({ ...prev, [goalId]: { ...prev[goalId], ...patch } }));
   }
@@ -182,27 +177,26 @@ export default function ManagerReviewForm({
     await saveField(key, value);
   }
 
-  async function handleSignOff() {
-    setSubmitting(true);
+  async function handleSave() {
+    setSaveStatus('saving');
     try {
-      const allKeys = questions.map((q) => q.question_key);
-      await Promise.all(allKeys.map((key) => saveField(key, answers[key] ?? '')));
-      const res = await fetch('/api/review/signoff', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycle_id: cycleId, subject_token: subjectToken, assignment_id: assignmentId }),
-      });
-      if (res.ok) setSignedOff(true);
+      await saveAllFields();
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
     } catch {
-      // silent failure
-    } finally {
-      setSubmitting(false);
+      setSaveStatus('idle');
     }
   }
 
   async function handleRelease() {
     setReleasing(true);
     try {
+      await saveAllFields();
+      await fetch('/api/review/signoff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cycle_id: cycleId, subject_token: subjectToken, assignment_id: assignmentId }),
+      });
       const res = await fetch('/api/review/release', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -213,17 +207,44 @@ export default function ManagerReviewForm({
       // silent failure
     } finally {
       setReleasing(false);
+      setReleaseConfirmStep(false);
     }
   }
 
-  const pdfHref = `/review/manager/print?cycle=${cycleId}&token=${managerToken}&subject=${subjectToken}`;
+  const firstName = subjectName.split(' ')[0];
+  const managerPdfHref = `/review/manager/print?cycle=${cycleId}&token=${managerToken}&subject=${subjectToken}`;
+  const selfPdfHref = `/review/self/print?cycle=${cycleId}&token=${managerToken}&subject=${subjectToken}`;
+  const peerPdfHref = `/review/peer/print?cycle=${cycleId}&token=${managerToken}&subject=${subjectToken}`;
 
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{cycleName}</p>
-          <h1 className="text-xl font-semibold text-gray-900">Manager review — {subjectName}</h1>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{cycleName}</p>
+            <h1 className="text-xl font-semibold text-gray-900">Manager review — {subjectName}</h1>
+          </div>
+          {/* Download buttons for self-review and peer feedback at top */}
+          <div className="flex flex-col gap-1.5 items-end shrink-0">
+            <a
+              href={selfPdfHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+            >
+              Self-review PDF
+            </a>
+            {peerReviews.length > 0 && (
+              <a
+                href={peerPdfHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+              >
+                Peer feedback PDF
+              </a>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -371,7 +392,7 @@ export default function ManagerReviewForm({
           {peerReviews.length > 0 && (
             <Collapsible title={`Peer feedback (${peerReviews.length} reviewer${peerReviews.length !== 1 ? 's' : ''})`}>
               <div className="space-y-5">
-                {questions.map((q) => {
+                {peerQuestions.map((q) => {
                   const peerAnswers = peerReviews
                     .map((peer) => peer.responses[q.question_key])
                     .filter((v) => v !== '' && v !== undefined && v !== null);
@@ -445,57 +466,68 @@ export default function ManagerReviewForm({
             </div>
           ))}
 
-          {isEditable && (
-            <div className="pt-2 pb-4">
+          {/* ── Actions ── */}
+          {isEditable && !released && (
+            <div className="pt-2 pb-4 space-y-3">
+              {/* Save button */}
               <button
-                onClick={handleSignOff}
-                disabled={submitting}
+                onClick={handleSave}
+                disabled={saveStatus === 'saving'}
                 className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                {submitting ? 'Signing off…' : 'Submit and sign off'}
+                {saveStatus === 'saving' ? 'Saving…' : 'Save'}
               </button>
-            </div>
-          )}
+              {saveStatus === 'saved' && (
+                <p className="text-center text-sm text-green-600">Saved</p>
+              )}
 
-          {signedOff && (
-            <div className="bg-green-50 border border-green-200 rounded-xl px-5 py-4 text-sm text-green-800">
-              Review signed off. The employee has been notified.
-            </div>
-          )}
-
-          {signedOff && (
-            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-              {released ? (
-                <p className="text-sm text-green-700 font-medium">Review released to employee.</p>
+              {/* Release section */}
+              {!releaseConfirmStep ? (
+                <button
+                  onClick={() => setReleaseConfirmStep(true)}
+                  className="w-full rounded-xl border border-gray-300 bg-white py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Release to {firstName}…
+                </button>
               ) : (
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Release to {subjectName}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">They will be able to view a PDF of this review.</p>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+                  <p className="text-sm text-amber-900 font-medium mb-1">Release review to {subjectName}?</p>
+                  <p className="text-xs text-amber-700 mb-4">They'll receive an email notification and can view the full review. This cannot be undone.</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleRelease}
+                      disabled={releasing}
+                      className="flex-1 rounded-lg bg-amber-600 text-white py-2 text-sm font-medium hover:bg-amber-700 disabled:opacity-40 transition-colors"
+                    >
+                      {releasing ? 'Releasing…' : `Yes, release to ${firstName}`}
+                    </button>
+                    <button
+                      onClick={() => setReleaseConfirmStep(false)}
+                      className="flex-1 rounded-lg border border-gray-200 bg-white py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
                   </div>
-                  <button
-                    onClick={handleRelease}
-                    disabled={releasing}
-                    className="shrink-0 rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
-                  >
-                    {releasing ? 'Releasing…' : `Release to ${subjectName.split(' ')[0]}`}
-                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {signedOff && <BackToProfile token={managerToken} />}
+          {released && (
+            <div className="rounded-xl bg-green-50 border border-green-200 px-5 py-4 text-sm text-green-800 pb-4">
+              Review released to {subjectName}.
+            </div>
+          )}
 
-          {/* Download PDF — bottom */}
-          <div className="pb-4">
+          {/* Download manager review PDF — bottom */}
+          <div className="pb-8">
             <a
-              href={pdfHref}
+              href={managerPdfHref}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full text-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
             >
-              Download PDF
+              Download manager review PDF
             </a>
           </div>
         </div>

@@ -147,6 +147,7 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
   const goals = getMemberGoalsExtended(subjectToken);
   const questions = getCycleQuestions(cycleId, 'manager');
   const selfQuestions = getCycleQuestions(cycleId, 'self');
+  const peerQuestions = getCycleQuestions(cycleId, 'peer');
 
   return (
     <ManagerReviewForm
@@ -160,12 +161,13 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
       selfReviewResponses={selfResponseMap as Record<string, string>}
       peerReviews={peerReviews}
       selfGoals={selfGoals}
-      isEditable={managerAssignment.status !== 'submitted' && !isSignedOff && cycle.status === 'manager_review_open'}
+      isEditable={!isReleased && cycle.status === 'manager_review_open'}
       isSignedOff={isSignedOff}
       isReleased={isReleased}
       goals={goals}
       questions={questions}
       selfQuestions={selfQuestions}
+      peerQuestions={peerQuestions}
     />
   );
 }

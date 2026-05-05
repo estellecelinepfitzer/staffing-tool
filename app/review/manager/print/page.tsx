@@ -11,7 +11,7 @@ import {
   getSubmittedPeerAssignmentsForSubject,
   getResponsesForAssignments,
   getSignoff,
-  getMemberGoals,
+  getMemberGoalsExtended,
   getCycleQuestions,
 } from '@/lib/db';
 import type { ReviewAssignment, ReviewResponse } from '@/lib/db';
@@ -64,12 +64,13 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
   if (!managerAssignment) return <p>Assignment not found.</p>;
 
   const managerResponses = responsesToMap(getResponses(managerAssignment.id));
-  const goals = getMemberGoals(subjectToken);
+  const goals = getMemberGoalsExtended(subjectToken);
   const questions = getCycleQuestions(cycleId, 'manager');
   const signoff = getSignoff(cycleId, subjectToken);
 
-  // Peer reviews — aggregate ratings only
+  // Peer reviews — per-question anonymous
   const peerAssignments: ReviewAssignment[] = getSubmittedPeerAssignmentsForSubject(cycleId, subjectToken);
+  const peerQuestions = getCycleQuestions(cycleId, 'peer');
   const peerResponseRows = getResponsesForAssignments(peerAssignments.map((a) => a.id));
   const byAssignment = new Map<number, ReviewResponse[]>();
   for (const row of peerResponseRows) {
@@ -85,18 +86,6 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
     responsesToMap(byAssignment.get(a.id) ?? []),
   );
 
-  // Compute average peer ratings per question key
-  const peerRatingAverages: Record<string, number | null> = {};
-  for (const q of questions.filter((q) => q.question_type === 'rating')) {
-    const vals = peerResponseMaps
-      .map((r) => r[q.question_key])
-      .filter((v) => v !== '' && v !== undefined)
-      .map(Number);
-    peerRatingAverages[q.question_key] = vals.length > 0
-      ? Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
-      : null;
-  }
-
   const today = new Date().toLocaleDateString('en-CH', { day: '2-digit', month: 'long', year: 'numeric' });
 
   return (
@@ -108,18 +97,19 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; color: #111; background: white; padding: 40px; max-width: 760px; margin: 0 auto; }
           h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
           h2 { font-size: 14px; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin: 24px 0 12px; }
-          h3 { font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 8px; }
+          h3 { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
           .meta { color: #6b7280; font-size: 12px; margin-bottom: 24px; }
-          .section { margin-bottom: 20px; }
           .field { margin-bottom: 14px; }
           .label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
           .value { color: #111; line-height: 1.5; }
           .rating { display: inline-block; background: #f3f4f6; border-radius: 6px; padding: 2px 10px; font-weight: 600; }
-          .goal { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
-          .goal-title { font-weight: 600; margin-bottom: 8px; }
-          .peer-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-          .peer-table th { text-align: left; font-weight: 600; color: #6b7280; padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
-          .peer-table td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; }
+          .goal { border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px; margin-bottom: 10px; }
+          .goal-title { font-weight: 600; margin-bottom: 10px; font-size: 13px; }
+          .goal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+          .peer-q { margin-bottom: 14px; }
+          .peer-q-label { font-size: 11px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+          .peer-answer { display: flex; gap: 8px; margin-bottom: 4px; font-size: 12px; color: #374151; line-height: 1.5; }
+          .peer-bullet { color: #d1d5db; flex-shrink: 0; }
           @media print {
             .no-print { display: none !important; }
             body { padding: 20px; }
@@ -140,25 +130,52 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
           <>
             <h2>Goals</h2>
             {goals.map((goal) => {
-              const progressKey = `goal_progress_${goal.id}`;
-              const commentKey = `goal_comment_${goal.id}`;
-              const progress = managerResponses[progressKey];
-              const comment = managerResponses[commentKey];
+              const managerProgress = goal.manager_progress;
+              const displayProgress = managerProgress !== null && managerProgress !== undefined
+                ? managerProgress
+                : goal.progress;
+              const hasOverride = managerProgress !== null && managerProgress !== undefined;
+
               return (
                 <div key={goal.id} className="goal">
                   <div className="goal-title">{goal.body}</div>
-                  <div className="field">
-                    <div className="label">Manager rating</div>
-                    <div className="value">
-                      {progress !== '' && progress !== undefined
-                        ? <span className="rating">{progress} — {RATING_LABELS[Number(progress)]}</span>
-                        : <span style={{color:'#9ca3af'}}>Not rated</span>}
+                  {goal.description && (
+                    <div className="field">
+                      <div className="value" style={{ color: '#6b7280', fontSize: '12px' }}>{goal.description}</div>
+                    </div>
+                  )}
+                  <div className="goal-grid">
+                    <div className="field">
+                      <div className="label">Employee progress</div>
+                      <div className="value">
+                        {goal.scale === 'percent_100'
+                          ? `${goal.progress}%`
+                          : goal.progress > 0
+                            ? `${goal.progress} / 5 — ${RATING_LABELS[goal.progress] ?? ''}`
+                            : <span style={{ color: '#9ca3af' }}>Not rated</span>}
+                      </div>
+                    </div>
+                    <div className="field">
+                      <div className="label">Manager progress{hasOverride ? ' (override)' : ''}</div>
+                      <div className="value">
+                        {goal.scale === 'percent_100'
+                          ? `${Math.round(displayProgress)}%${hasOverride ? '' : ' (employee)'}`
+                          : displayProgress > 0
+                            ? `${displayProgress} / 5 — ${RATING_LABELS[displayProgress] ?? ''}${hasOverride ? '' : ' (employee)'}`
+                            : <span style={{ color: '#9ca3af' }}>Not set</span>}
+                      </div>
                     </div>
                   </div>
-                  {comment && (
+                  {goal.progress_comment && (
                     <div className="field">
-                      <div className="label">Comment</div>
-                      <div className="value" style={{whiteSpace:'pre-wrap'}}>{String(comment)}</div>
+                      <div className="label">Employee comment</div>
+                      <div className="value" style={{ whiteSpace: 'pre-wrap' }}>{goal.progress_comment}</div>
+                    </div>
+                  )}
+                  {goal.manager_comment && (
+                    <div className="field">
+                      <div className="label">Manager comment</div>
+                      <div className="value" style={{ whiteSpace: 'pre-wrap' }}>{goal.manager_comment}</div>
                     </div>
                   )}
                 </div>
@@ -178,40 +195,38 @@ export default function ManagerReviewPrintPage({ searchParams }: PageProps) {
                 {val !== '' && val !== undefined
                   ? q.question_type === 'rating'
                     ? <span className="rating">{val} — {RATING_LABELS[Number(val)]}</span>
-                    : <span style={{whiteSpace:'pre-wrap'}}>{String(val)}</span>
-                  : <span style={{color:'#9ca3af'}}>No response</span>}
+                    : <span style={{ whiteSpace: 'pre-wrap' }}>{String(val)}</span>
+                  : <span style={{ color: '#9ca3af' }}>No response</span>}
               </div>
             </div>
           );
         })}
 
-        {/* Aggregated peer ratings */}
-        {peerAssignments.length > 0 && questions.some((q) => q.question_type === 'rating') && (
+        {/* Peer feedback — per-question anonymous */}
+        {peerAssignments.length > 0 && peerQuestions.length > 0 && (
           <>
-            <h2>Aggregated Peer Ratings ({peerAssignments.length} reviewers)</h2>
-            <table className="peer-table">
-              <thead>
-                <tr>
-                  <th>Question</th>
-                  <th style={{width:'140px'}}>Avg. Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {questions.filter((q) => q.question_type === 'rating').map((q) => {
-                  const avg = peerRatingAverages[q.question_key];
-                  return (
-                    <tr key={q.question_key}>
-                      <td>{q.question_text}</td>
-                      <td>
-                        {avg !== null
-                          ? `${avg} / 5`
-                          : <span style={{color:'#9ca3af'}}>No data</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <h2>Peer Feedback ({peerAssignments.length} reviewer{peerAssignments.length !== 1 ? 's' : ''})</h2>
+            {peerQuestions.map((q) => {
+              const answers = peerResponseMaps
+                .map((r) => r[q.question_key])
+                .filter((v) => v !== '' && v !== undefined && v !== null);
+              if (answers.length === 0) return null;
+              return (
+                <div key={q.question_key} className="peer-q">
+                  <div className="peer-q-label">{q.question_text}</div>
+                  {answers.map((answer, i) => (
+                    <div key={i} className="peer-answer">
+                      <span className="peer-bullet">–</span>
+                      <span style={{ whiteSpace: 'pre-wrap' }}>
+                        {q.question_type === 'rating'
+                          ? `${answer} — ${RATING_LABELS[Number(answer)] ?? ''}`
+                          : String(answer)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </>
         )}
       </body>
