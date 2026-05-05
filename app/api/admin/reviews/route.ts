@@ -33,10 +33,10 @@ export async function POST(request: NextRequest) {
     created_at: new Date().toISOString(),
   });
 
-  // Find most recent closed cycle to seed questions from
+  // Seed from the most recent previous cycle (any status) so deletions propagate
   const allCycles = getAllCycles();
-  const previousClosed = allCycles.find((c) => c.status === 'closed' && c.id !== id);
-  seedQuestionsForCycle(id, previousClosed?.id ?? null);
+  const previousCycle = allCycles.find((c) => c.id !== id);
+  seedQuestionsForCycle(id, previousCycle?.id ?? null);
 
   return NextResponse.json({ id, ok: true });
 }

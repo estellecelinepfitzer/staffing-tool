@@ -61,6 +61,9 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
   const [addingCompany, setAddingCompany] = useState(false);
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
 
+  // Personal goal expand/collapse
+  const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
+
   // Personal goal form
   const [showAddPersonal, setShowAddPersonal] = useState<string | null>(null);
   const [newPersonalTitle, setNewPersonalTitle] = useState('');
@@ -294,85 +297,131 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
           </div>
         </div>
 
-        {/* Personal goals by member */}
+        {/* Personal goals by member — collapsible */}
         <div>
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3">Personal Goals</h2>
-          <div className="space-y-4">
+          <div className="space-y-2">
             {members.map((member) => {
               const memberGoals = personalGoals.filter((g) => g.member_token === member.token);
+              const isExpanded = expandedMembers.has(member.token);
               const isAddOpen = showAddPersonal === member.token;
+              const avg = rollup(memberGoals);
+
+              function toggleExpand() {
+                setExpandedMembers((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(member.token)) next.delete(member.token);
+                  else next.add(member.token);
+                  return next;
+                });
+              }
+
               return (
                 <div key={member.token} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                    <span className="text-sm font-medium text-gray-700">{member.name}</span>
-                    <button
-                      onClick={() => setShowAddPersonal(isAddOpen ? null : member.token)}
-                      className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-1"
-                    >
-                      {isAddOpen ? 'Cancel' : '+ Add goal'}
-                    </button>
-                  </div>
+                  {/* Header row — always visible */}
+                  <button
+                    type="button"
+                    onClick={toggleExpand}
+                    className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <svg
+                        className={`w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-800">{member.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {memberGoals.length > 0 && (
+                        <span className="text-xs text-gray-400">
+                          {memberGoals.length} goal{memberGoals.length !== 1 ? 's' : ''}
+                          {' · '}
+                          <span className="text-gray-600 font-medium">{avg}%</span>
+                        </span>
+                      )}
+                      {memberGoals.length === 0 && (
+                        <span className="text-xs text-gray-300">No goals</span>
+                      )}
+                    </div>
+                  </button>
 
-                  {isAddOpen && (
-                    <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 space-y-2">
-                      <input
-                        type="text"
-                        value={newPersonalTitle}
-                        onChange={(e) => setNewPersonalTitle(e.target.value)}
-                        placeholder="Goal title"
-                        className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
-                        autoFocus
-                      />
-                      <textarea
-                        value={newPersonalDesc}
-                        onChange={(e) => setNewPersonalDesc(e.target.value)}
-                        rows={2}
-                        placeholder="Description (optional)"
-                        className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal"
-                      />
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <select
-                          value={newPersonalCompanyId ?? ''}
-                          onChange={(e) => setNewPersonalCompanyId(e.target.value ? Number(e.target.value) : null)}
-                          className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
-                        >
-                          <option value="">— no company goal —</option>
-                          {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}
-                        </select>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-gray-500">Scale:</span>
-                          <ScaleToggle value={newPersonalScale} onChange={setNewPersonalScale} />
-                        </div>
+                  {/* Expanded content */}
+                  {isExpanded && (
+                    <>
+                      {/* Add goal form */}
+                      <div className="px-5 py-2 border-t border-gray-100 flex justify-end">
                         <button
-                          onClick={() => handleAddPersonalGoal(member.token)}
-                          disabled={addingPersonal || !newPersonalTitle.trim()}
-                          className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setShowAddPersonal(isAddOpen ? null : member.token); }}
+                          className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-1"
                         >
-                          {addingPersonal ? '…' : 'Add'}
+                          {isAddOpen ? 'Cancel' : '+ Add goal'}
                         </button>
                       </div>
-                    </div>
-                  )}
 
-                  {memberGoals.length === 0 && !isAddOpen && (
-                    <p className="px-5 py-3 text-xs text-gray-400">No goals set.</p>
-                  )}
+                      {isAddOpen && (
+                        <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 space-y-2">
+                          <input
+                            type="text"
+                            value={newPersonalTitle}
+                            onChange={(e) => setNewPersonalTitle(e.target.value)}
+                            placeholder="Goal title"
+                            className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                            autoFocus
+                          />
+                          <textarea
+                            value={newPersonalDesc}
+                            onChange={(e) => setNewPersonalDesc(e.target.value)}
+                            rows={2}
+                            placeholder="Description (optional)"
+                            className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                          />
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <select
+                              value={newPersonalCompanyId ?? ''}
+                              onChange={(e) => setNewPersonalCompanyId(e.target.value ? Number(e.target.value) : null)}
+                              className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                            >
+                              <option value="">— no company goal —</option>
+                              {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}
+                            </select>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-gray-500">Scale:</span>
+                              <ScaleToggle value={newPersonalScale} onChange={setNewPersonalScale} />
+                            </div>
+                            <button
+                              onClick={() => handleAddPersonalGoal(member.token)}
+                              disabled={addingPersonal || !newPersonalTitle.trim()}
+                              className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
+                            >
+                              {addingPersonal ? '…' : 'Add'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
-                  {memberGoals.length > 0 && (
-                    <div className="divide-y divide-gray-100">
-                      {memberGoals.map((pg) => (
-                        <PersonalGoalRow
-                          key={pg.id}
-                          goal={pg}
-                          memberName=""
-                          companyGoals={companyGoals}
-                          onProgressChange={(v) => handleUpdatePersonalGoal(pg, { progress: v })}
-                          onScaleChange={(s) => handleUpdatePersonalGoal(pg, { scale: s })}
-                          onLink={(cgId) => handleUpdatePersonalGoal(pg, { company_goal_id: cgId })}
-                          onDelete={() => handleDeletePersonalGoal(pg)}
-                        />
-                      ))}
-                    </div>
+                      {memberGoals.length === 0 && !isAddOpen && (
+                        <p className="px-5 py-3 text-xs text-gray-400 border-t border-gray-100">No goals set.</p>
+                      )}
+
+                      {memberGoals.length > 0 && (
+                        <div className="divide-y divide-gray-100 border-t border-gray-100">
+                          {memberGoals.map((pg) => (
+                            <PersonalGoalRow
+                              key={pg.id}
+                              goal={pg}
+                              memberName=""
+                              companyGoals={companyGoals}
+                              onProgressChange={(v) => handleUpdatePersonalGoal(pg, { progress: v })}
+                              onScaleChange={(s) => handleUpdatePersonalGoal(pg, { scale: s })}
+                              onLink={(cgId) => handleUpdatePersonalGoal(pg, { company_goal_id: cgId })}
+                              onDelete={() => handleDeletePersonalGoal(pg)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               );

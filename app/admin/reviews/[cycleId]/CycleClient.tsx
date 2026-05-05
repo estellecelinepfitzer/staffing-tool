@@ -11,7 +11,6 @@ import {
   TeamMemberRow,
   CycleQuestion,
 } from '@/lib/db';
-import GoalsPanel from './GoalsPanel';
 import QuestionsPanel from './QuestionsPanel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -483,11 +482,6 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
               );
             })}
           </div>
-        </Section>
-
-        {/* ── Goals ── */}
-        <Section title="Goals">
-          <GoalsPanel cycleId={cycleId} members={membersList} />
         </Section>
 
         {/* ── Questions ── */}

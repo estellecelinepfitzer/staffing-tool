@@ -4,16 +4,6 @@ import { useState } from 'react';
 import { SELF_REVIEW_HEADLINE, RATING_LABELS } from '@/lib/reviewQuestions';
 import type { CycleQuestion } from '@/lib/db';
 
-interface MemberGoalExtended {
-  id: number;
-  body: string;
-  description: string;
-  progress: number;
-  progress_comment: string;
-  company_goal_id: number | null;
-  scale: 'rating_5' | 'percent_100';
-}
-
 interface Props {
   cycleId: number;
   token: string;
@@ -22,34 +12,20 @@ interface Props {
   existingResponses: Record<string, string>;
   isEditable: boolean;
   questions: CycleQuestion[];
-  goals: MemberGoalExtended[];
-}
-
-interface GoalState {
-  progress: number;
-  comment: string;
-}
-
-async function saveGoal(goalId: number, progress: number, comment: string) {
-  try {
-    await fetch(`/api/review/goals/${goalId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ progress, progress_comment: comment }),
-    });
-  } catch {
-    // silent failure
-  }
+  managerToken?: string;
+  subjectToken?: string;
 }
 
 export default function SelfReviewForm({
+  cycleId,
   token,
   assignmentId,
   cycleName,
   existingResponses,
   isEditable,
   questions,
-  goals,
+  managerToken,
+  subjectToken,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, string | number>>(() => {
     const init: Record<string, string | number> = {};
@@ -59,10 +35,6 @@ export default function SelfReviewForm({
     }
     return init;
   });
-
-  const [goalStates, setGoalStates] = useState<Record<number, GoalState>>(() =>
-    Object.fromEntries(goals.map((g) => [g.id, { progress: g.progress, comment: g.progress_comment }])),
-  );
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -99,20 +71,6 @@ export default function SelfReviewForm({
     await saveField(key, value);
   }
 
-  function updateGoalState(goalId: number, patch: Partial<GoalState>) {
-    setGoalStates((prev) => ({ ...prev, [goalId]: { ...prev[goalId], ...patch } }));
-  }
-
-  async function handleGoalProgressChange(goal: MemberGoalExtended, value: number) {
-    updateGoalState(goal.id, { progress: value });
-    await saveGoal(goal.id, value, goalStates[goal.id]?.comment ?? '');
-  }
-
-  async function handleGoalCommentBlur(goal: MemberGoalExtended) {
-    const state = goalStates[goal.id];
-    await saveGoal(goal.id, state?.progress ?? goal.progress, state?.comment ?? '');
-  }
-
   async function handleSubmit() {
     const missing = questions.filter(
       (q) => q.required === 1 && (answers[q.question_key] === '' || answers[q.question_key] === undefined),
@@ -125,13 +83,7 @@ export default function SelfReviewForm({
     setSubmitting(true);
     try {
       const allKeys = questions.map((q) => q.question_key);
-      await Promise.all([
-        ...allKeys.map((key) => saveField(key, answers[key] ?? '')),
-        ...goals.map((g) => {
-          const s = goalStates[g.id];
-          return saveGoal(g.id, s?.progress ?? g.progress, s?.comment ?? '');
-        }),
-      ]);
+      await Promise.all(allKeys.map((key) => saveField(key, answers[key] ?? '')));
       const res = await fetch('/api/review/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -169,109 +121,32 @@ export default function SelfReviewForm({
     );
   }
 
+  const pdfHref = managerToken && subjectToken
+    ? `/review/manager/print?cycle=${cycleId}&token=${managerToken}&subject=${subjectToken}`
+    : null;
+
   return (
     <div className="min-h-screen bg-gray-50 py-10 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{cycleName}</p>
-          <h1 className="text-xl font-semibold text-gray-900">Self-Review</h1>
-          <p className="text-sm text-gray-500 mt-1">{SELF_REVIEW_HEADLINE}</p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{cycleName}</p>
+            <h1 className="text-xl font-semibold text-gray-900">Self-Review</h1>
+            <p className="text-sm text-gray-500 mt-1">{SELF_REVIEW_HEADLINE}</p>
+          </div>
+          {pdfHref && (
+            <a
+              href={pdfHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              Download PDF
+            </a>
+          )}
         </div>
 
         <div className="space-y-5">
-          {/* Goals — editable progress + comment when form is open */}
-          {goals.length > 0 && (
-            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-              <p className="text-sm font-medium text-gray-700 mb-4">Your goals</p>
-              <div className="space-y-5">
-                {goals.map((goal) => {
-                  const state = goalStates[goal.id] ?? { progress: goal.progress, comment: goal.progress_comment };
-                  return (
-                    <div key={goal.id} className="border-b border-gray-100 pb-5 last:border-0 last:pb-0">
-                      <p className="text-sm font-medium text-gray-800 mb-0.5">{goal.body}</p>
-                      {goal.description && (
-                        <p className="text-xs text-gray-500 mb-3">{goal.description}</p>
-                      )}
-
-                      {/* Progress input */}
-                      <div className="mb-3">
-                        <p className="text-xs font-medium text-gray-500 mb-2">Progress</p>
-                        {goal.scale === 'percent_100' ? (
-                          isEditable ? (
-                            <div className="flex items-center gap-3">
-                              <input
-                                type="range"
-                                min={0}
-                                max={100}
-                                step={5}
-                                value={state.progress}
-                                onChange={(e) => handleGoalProgressChange(goal, Number(e.target.value))}
-                                className="flex-1 accent-[#0080C8]"
-                              />
-                              <span className="text-xs text-gray-600 w-10 text-right">{Math.round(state.progress)}%</span>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 max-w-[120px] bg-gray-100 rounded-full h-1.5">
-                                <div className="bg-brand-teal h-1.5 rounded-full" style={{ width: `${state.progress}%` }} />
-                              </div>
-                              <span className="text-xs text-gray-500">{Math.round(state.progress)}%</span>
-                            </div>
-                          )
-                        ) : isEditable ? (
-                          <div>
-                            <div className="flex gap-5">
-                              {[1, 2, 3, 4, 5].map((n) => (
-                                <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
-                                  <input
-                                    type="radio"
-                                    name={`goal_progress_${goal.id}`}
-                                    value={n}
-                                    checked={state.progress === n}
-                                    onChange={() => handleGoalProgressChange(goal, n)}
-                                    className="w-4 h-4 accent-[#0080C8]"
-                                  />
-                                  <span className="text-xs text-gray-400">{n}</span>
-                                </label>
-                              ))}
-                            </div>
-                            {state.progress > 0 && (
-                              <p className="text-xs text-gray-500 mt-1.5">{RATING_LABELS[state.progress]}</p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-gray-700">
-                            {state.progress > 0 ? `${state.progress} / 5` : <span className="text-gray-400">—</span>}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Comment */}
-                      <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1.5">Comment</p>
-                        {isEditable ? (
-                          <textarea
-                            rows={2}
-                            className="block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
-                            placeholder="How did this goal go? Any blockers or context for your manager…"
-                            value={state.comment}
-                            onChange={(e) => updateGoalState(goal.id, { comment: e.target.value })}
-                            onBlur={() => handleGoalCommentBlur(goal)}
-                          />
-                        ) : (
-                          <div className="text-sm text-gray-700 whitespace-pre-wrap">
-                            {state.comment || <span className="text-gray-400">No comment</span>}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Questions */}
           {questions.map((q) => (
             <div key={q.question_key} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">

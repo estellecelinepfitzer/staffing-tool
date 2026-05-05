@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { createHash } from 'crypto';
+import { createHash } from 'crypto';  // used for deterministic peer ordering
 import { verifySignedToken, COOKIE_NAME } from '@/lib/auth';
 import {
   getTeamMember,
@@ -140,8 +140,7 @@ export default async function ManagerReviewPage({ searchParams }: PageProps) {
       peerLabel(cycleId, subjectToken, b.reviewer_token),
     ),
   );
-  const peerReviews = sorted.map((a, i) => ({
-    label: `Peer ${String.fromCharCode(65 + i)}`,
+  const peerReviews = sorted.map((a) => ({
     responses: responsesToMap(peerResponsesByAssignment.get(a.id) ?? []) as Record<string, string | number>,
   }));
 

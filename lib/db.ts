@@ -6,7 +6,6 @@ import {
   SELF_REVIEW_QUESTIONS,
   PEER_REVIEW_QUESTIONS,
   MANAGER_REVIEW_QUESTIONS,
-  SELF_GOALS_KEY,
 } from './reviewQuestions';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -203,8 +202,9 @@ function initSchema(db: Database.Database) {
   addColumnIfMissing(db, 'member_goals', 'description',     'TEXT NOT NULL DEFAULT \'\'');
   addColumnIfMissing(db, 'member_goals', 'progress',        'REAL NOT NULL DEFAULT 0');
   addColumnIfMissing(db, 'member_goals', 'scale',            "TEXT NOT NULL DEFAULT 'percent_100'");
-  addColumnIfMissing(db, 'member_goals', 'progress_comment', "TEXT NOT NULL DEFAULT ''");
-  addColumnIfMissing(db, 'company_goals', 'scale',           "TEXT NOT NULL DEFAULT 'percent_100'");
+  addColumnIfMissing(db, 'member_goals', 'progress_comment',  "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, 'member_goals', 'manager_progress',  'REAL');
+  addColumnIfMissing(db, 'member_goals', 'manager_comment',   "TEXT NOT NULL DEFAULT ''");
 
   // ── Company-level goals ──
   db.exec(`
@@ -216,6 +216,7 @@ function initSchema(db: Database.Database) {
       created_at  TEXT    NOT NULL
     )
   `);
+  addColumnIfMissing(db, 'company_goals', 'scale', "TEXT NOT NULL DEFAULT 'percent_100'");
 
   // ── Cycle questions ──
   db.exec(`
@@ -925,13 +926,9 @@ function seedQuestionsForCycleWithDb(db: Database.Database, cycleId: number, sou
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   db.transaction(() => {
-    // Self-review: prepend the goals key as a special question
-    const selfQuestions = [
-      { key: SELF_GOALS_KEY, text: 'Goals & progress', type: 'text', required: true, placeholder: 'Reflect on your goals and progress over the past year…' },
-      ...SELF_REVIEW_QUESTIONS.map((q) => ({ key: q.key, text: q.text, type: q.type as string, required: q.required, placeholder: q.placeholder ?? null })),
-    ];
-    selfQuestions.forEach((q, i) => {
-      insert.run(cycleId, 'self', q.key, q.text, q.type, q.placeholder ?? null, q.required ? 1 : 0, i);
+    // Self-review
+    SELF_REVIEW_QUESTIONS.forEach((q, i) => {
+      insert.run(cycleId, 'self', q.key, q.text, q.type as string, q.placeholder ?? null, q.required ? 1 : 0, i);
     });
     // Peer review
     PEER_REVIEW_QUESTIONS.forEach((q, i) => {
@@ -1155,6 +1152,8 @@ export interface MemberGoalExtended extends MemberGoal {
   progress: number;
   scale: 'rating_5' | 'percent_100';
   progress_comment: string;
+  manager_progress: number | null;
+  manager_comment: string;
 }
 
 export function getMemberGoalsExtended(memberToken: string): MemberGoalExtended[] {
@@ -1191,6 +1190,10 @@ export function updateMemberGoalProgressAndComment(id: number, progress: number,
 
 export function getMemberGoalById(id: number): MemberGoalExtended | null {
   return (getDb().prepare('SELECT * FROM member_goals WHERE id = ?').get(id) as MemberGoalExtended) ?? null;
+}
+
+export function updateManagerGoalProgressAndComment(id: number, managerProgress: number | null, managerComment: string): void {
+  getDb().prepare('UPDATE member_goals SET manager_progress = ?, manager_comment = ? WHERE id = ?').run(managerProgress, managerComment, id);
 }
 
 export function upsertCheckinResponse(
