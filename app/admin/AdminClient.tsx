@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { TeamMemberRow, ReviewCycle } from '@/lib/db';
 
@@ -42,26 +42,6 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
   const [newPassword, setNewPassword] = useState('');
   const [adding, setAdding] = useState(false);
 
-  // Settings dropdown + admin password change state
-  const [showSettings, setShowSettings] = useState(false);
-  const [showAdminPw, setShowAdminPw] = useState(false);
-  const settingsRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
-        setShowSettings(false);
-        setShowAdminPw(false);
-      }
-    }
-    if (showSettings) document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSettings]);
-  const [adminCurrentPw, setAdminCurrentPw] = useState('');
-  const [adminNewPw, setAdminNewPw] = useState('');
-  const [adminNewPwConfirm, setAdminNewPwConfirm] = useState('');
-  const [adminPwSaving, setAdminPwSaving] = useState(false);
-  const [adminPwError, setAdminPwError] = useState<string | null>(null);
-  const [adminPwSuccess, setAdminPwSuccess] = useState(false);
 
   async function handleRoleToggle(token: string, currentRole: string) {
     const newRole = currentRole === 'admin' ? 'member' : 'admin';
@@ -212,34 +192,6 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
     }
   }
 
-  async function handleAdminPwChange() {
-    if (!adminCurrentPw || !adminNewPw || !adminNewPwConfirm) return;
-    if (adminNewPw !== adminNewPwConfirm) { setAdminPwError('New passwords do not match'); return; }
-    if (adminNewPw.length < 6) { setAdminPwError('Password must be at least 6 characters'); return; }
-    setAdminPwSaving(true);
-    setAdminPwError(null);
-    try {
-      const res = await fetch('/api/admin/settings/password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currentPassword: adminCurrentPw, newPassword: adminNewPw }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(data.error ?? 'Failed');
-      }
-      setAdminPwSuccess(true);
-      setAdminCurrentPw('');
-      setAdminNewPw('');
-      setAdminNewPwConfirm('');
-      setTimeout(() => { setAdminPwSuccess(false); setShowAdminPw(false); }, 2000);
-    } catch (err) {
-      setAdminPwError(err instanceof Error ? err.message : 'Error changing password');
-    } finally {
-      setAdminPwSaving(false);
-    }
-  }
-
   async function handleAddCategory() {
     const label = newCategoryLabel.trim();
     if (!label) return;
@@ -340,80 +292,6 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
             >
               Review Cycles →
             </Link>
-            <div className="relative" ref={settingsRef}>
-              <button
-                onClick={() => { setShowSettings((p) => !p); setShowAdminPw(false); }}
-                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${showSettings ? 'border-gray-800 bg-brand-blue text-white' : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
-                title="Settings"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Settings
-              </button>
-
-              {showSettings && (
-                <div className="absolute right-0 top-full mt-1.5 z-50 w-72 bg-white rounded-xl border border-gray-200 shadow-lg py-1">
-                  {!showAdminPw ? (
-                    <button
-                      onClick={() => setShowAdminPw(true)}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                      </svg>
-                      Change admin password
-                    </button>
-                  ) : (
-                    <div className="px-4 py-3">
-                      <p className="text-sm font-medium text-gray-700 mb-3">Change admin password</p>
-                      <div className="space-y-2">
-                        <input
-                          type="password"
-                          placeholder="Current password"
-                          value={adminCurrentPw}
-                          onChange={(e) => setAdminCurrentPw(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
-                        />
-                        <input
-                          type="password"
-                          placeholder="New password"
-                          value={adminNewPw}
-                          onChange={(e) => setAdminNewPw(e.target.value)}
-                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
-                        />
-                        <input
-                          type="password"
-                          placeholder="Confirm new password"
-                          value={adminNewPwConfirm}
-                          onChange={(e) => setAdminNewPwConfirm(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleAdminPwChange(); }}
-                          className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
-                        />
-                        {adminPwError && <p className="text-xs text-red-600">{adminPwError}</p>}
-                        {adminPwSuccess && <p className="text-xs text-green-600">Password updated.</p>}
-                        <div className="flex gap-2 pt-1">
-                          <button
-                            onClick={handleAdminPwChange}
-                            disabled={adminPwSaving || !adminCurrentPw || !adminNewPw || !adminNewPwConfirm}
-                            className="rounded-lg bg-brand-blue px-4 py-2 text-sm font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors"
-                          >
-                            {adminPwSaving ? 'Saving…' : 'Update password'}
-                          </button>
-                          <button
-                            onClick={() => { setShowAdminPw(false); setAdminPwError(null); setAdminCurrentPw(''); setAdminNewPw(''); setAdminNewPwConfirm(''); }}
-                            className="text-sm text-gray-400 hover:text-gray-600"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
