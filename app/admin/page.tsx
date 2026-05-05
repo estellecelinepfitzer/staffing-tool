@@ -1,13 +1,13 @@
 export const dynamic = 'force-dynamic';
 
+import { redirect } from 'next/navigation';
 import { isAdminAuthenticated } from '@/lib/adminAuth';
 import { getAllTeamMembers, getAllCycles, getAllCategories } from '@/lib/db';
-import AdminLogin from './AdminLogin';
 import AdminClient from './AdminClient';
 
 export default function AdminPage() {
   if (!isAdminAuthenticated()) {
-    return <AdminLogin />;
+    redirect('/login');
   }
 
   const members = getAllTeamMembers();
