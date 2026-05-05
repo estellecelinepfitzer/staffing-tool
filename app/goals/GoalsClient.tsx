@@ -61,6 +61,9 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
   const [addingCompany, setAddingCompany] = useState(false);
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
 
+  // Company goal linked-goals expand/collapse
+  const [expandedCompanyGoals, setExpandedCompanyGoals] = useState<Set<number>>(new Set());
+
   // Personal goal expand/collapse
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
 
@@ -241,6 +244,17 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
               const linked = personalGoals.filter((g) => g.company_goal_id === cg.id);
               const avg = rollup(linked);
               const isEditing = editingCompanyId === cg.id;
+              const isLinkedExpanded = expandedCompanyGoals.has(cg.id);
+
+              function toggleLinked() {
+                setExpandedCompanyGoals((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(cg.id)) next.delete(cg.id);
+                  else next.add(cg.id);
+                  return next;
+                });
+              }
+
               return (
                 <div key={cg.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                   <div className="px-5 py-4">
@@ -254,16 +268,28 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900">{cg.title}</p>
-                          {cg.description && <p className="text-xs text-gray-500 mt-0.5">{cg.description}</p>}
+                          {cg.description && <p className="text-xs text-gray-500 mt-1">{cg.description}</p>}
                           {linked.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-xs text-gray-400 mb-1">Avg progress ({linked.length} goal{linked.length !== 1 ? 's' : ''})</p>
-                              <div className="flex items-center gap-2">
+                            <div className="mt-3">
+                              <div className="flex items-center gap-2 mb-1.5">
                                 <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                   <div className="h-full bg-gray-800 rounded-full transition-all" style={{ width: `${avg}%` }} />
                                 </div>
                                 <span className="text-xs text-gray-500 shrink-0 w-10 text-right">{avg}%</span>
                               </div>
+                              <button
+                                type="button"
+                                onClick={toggleLinked}
+                                className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                              >
+                                <svg
+                                  className={`w-3 h-3 transition-transform ${isLinkedExpanded ? 'rotate-180' : ''}`}
+                                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                                </svg>
+                                {linked.length} linked goal{linked.length !== 1 ? 's' : ''}
+                              </button>
                             </div>
                           )}
                         </div>
@@ -275,7 +301,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                     )}
                   </div>
 
-                  {linked.length > 0 && (
+                  {linked.length > 0 && isLinkedExpanded && (
                     <div className="border-t border-gray-100 divide-y divide-gray-100">
                       {linked.map((pg) => (
                         <PersonalGoalRow
