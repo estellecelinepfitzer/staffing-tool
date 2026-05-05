@@ -127,11 +127,8 @@ function initSchema(db: Database.Database) {
   });
   seedAll();
 
-  // Bootstrap: if no admins exist yet, seed the initial two
-  const adminCount = (db.prepare("SELECT COUNT(*) as n FROM team_members WHERE role = 'admin'").get() as { n: number }).n;
-  if (adminCount === 0) {
-    db.prepare("UPDATE team_members SET role = 'admin' WHERE token IN ('christoph-kau', 'estelle-pfz')").run();
-  }
+  // Always ensure the two seed admins have admin role (other admins managed via admin page)
+  db.prepare("UPDATE team_members SET role = 'admin' WHERE token IN ('christoph-kau', 'estelle-pfz')").run();
 
   // Seed password hashes on first run (only if passwords table is empty)
   const passwordCount = (db.prepare('SELECT COUNT(*) as n FROM passwords').get() as { n: number }).n;
