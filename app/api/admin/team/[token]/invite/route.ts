@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
+import { isAdminRequest } from '@/lib/adminAuth';
 import { getTeamMember } from '@/lib/db';
 import { sendInvitation } from '@/lib/email';
 
-function isAdmin() {
-  const c = cookies().get(DASHBOARD_COOKIE_NAME);
-  return c ? verifySignedToken(c.value) === 'dashboard' : false;
-}
 
 export async function POST(
   _request: NextRequest,
   { params }: { params: { token: string } },
 ) {
-  if (!isAdmin()) {
+  if (!isAdminRequest()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

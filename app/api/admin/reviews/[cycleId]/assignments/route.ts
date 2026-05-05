@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
+import { isAdminRequest } from '@/lib/adminAuth';
 import { createAssignment, removeAssignment, getAssignment } from '@/lib/db';
 
-function isAdmin() {
-  const c = cookies().get(DASHBOARD_COOKIE_NAME);
-  return c ? verifySignedToken(c.value) === 'dashboard' : false;
-}
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { cycleId: string } },
 ) {
-  if (!isAdmin()) {
+  if (!isAdminRequest()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -42,7 +37,7 @@ export async function DELETE(
   request: NextRequest,
   { params: _params }: { params: { cycleId: string } },
 ) {
-  if (!isAdmin()) {
+  if (!isAdminRequest()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

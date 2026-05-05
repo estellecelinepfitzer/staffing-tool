@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
+import { isAdminRequest } from '@/lib/adminAuth';
 import { getCycle, updateQuestion, deleteQuestion } from '@/lib/db';
 
-function isAdmin() {
-  const c = cookies().get(DASHBOARD_COOKIE_NAME);
-  return c ? verifySignedToken(c.value) === 'dashboard' : false;
-}
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { cycleId: string; questionId: string } },
 ) {
-  if (!isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const cycleId = parseInt(params.cycleId, 10);
   const cycle = getCycle(cycleId);
@@ -34,7 +29,7 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: { cycleId: string; questionId: string } },
 ) {
-  if (!isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const cycleId = parseInt(params.cycleId, 10);
   const cycle = getCycle(cycleId);

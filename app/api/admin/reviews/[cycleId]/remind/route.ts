@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
+import { isAdminRequest } from '@/lib/adminAuth';
 import {
   getCycle,
   getTeamMember,
@@ -12,10 +11,6 @@ import { sendReviewReminder } from '@/lib/email';
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL ?? 'https://staffing.mtip.ch';
 
-function isAdmin() {
-  const c = cookies().get(DASHBOARD_COOKIE_NAME);
-  return c ? verifySignedToken(c.value) === 'dashboard' : false;
-}
 
 function firstName(name: string) {
   return name.split(' ')[0];
@@ -25,7 +20,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { cycleId: string } },
 ) {
-  if (!isAdmin()) {
+  if (!isAdminRequest()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

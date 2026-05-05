@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
+import { isAdminRequest } from '@/lib/adminAuth';
 import { getCycle, getCycleGoals, createGoal } from '@/lib/db';
 
-function isAdmin() {
-  const c = cookies().get(DASHBOARD_COOKIE_NAME);
-  return c ? verifySignedToken(c.value) === 'dashboard' : false;
-}
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { cycleId: string } },
 ) {
-  if (!isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const cycleId = parseInt(params.cycleId, 10);
   const subject = request.nextUrl.searchParams.get('subject');
@@ -26,7 +21,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { cycleId: string } },
 ) {
-  if (!isAdmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!isAdminRequest()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const cycleId = parseInt(params.cycleId, 10);
   const cycle = getCycle(cycleId);

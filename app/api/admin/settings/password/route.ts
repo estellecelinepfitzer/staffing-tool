@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySignedToken, ADMIN_COOKIE_NAME } from '@/lib/auth';
+import { isAdminRequest } from '@/lib/adminAuth';
 import { getAdminPasswordOverride, setAdminPasswordOverride } from '@/lib/db';
 
-function isAdmin() {
-  const c = cookies().get(ADMIN_COOKIE_NAME);
-  return c ? verifySignedToken(c.value) === 'admin' : false;
-}
-
 export async function POST(req: NextRequest) {
-  if (!isAdmin()) {
+  if (!isAdminRequest()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
