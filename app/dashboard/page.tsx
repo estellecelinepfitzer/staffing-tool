@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { cookies } from 'next/headers';
-import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
+import { verifySignedToken, DASHBOARD_COOKIE_NAME, COOKIE_NAME } from '@/lib/auth';
+import { getTeamMember } from '@/lib/db';
 import DashboardClient from './DashboardClient';
 import DashboardPasswordGate from './DashboardPasswordGate';
 
@@ -15,9 +16,20 @@ export default function DashboardPage() {
     return <DashboardPasswordGate />;
   }
 
+  // Determine if the current user is an admin (via their personal session cookie)
+  let isAdmin = false;
+  const userSession = cookieStore.get(COOKIE_NAME);
+  if (userSession) {
+    const memberToken = verifySignedToken(userSession.value);
+    if (memberToken) {
+      const member = getTeamMember(memberToken);
+      if (member?.role === 'admin') isAdmin = true;
+    }
+  }
+
   return (
     <Suspense fallback={<LoadingScreen />}>
-      <DashboardClient />
+      <DashboardClient isAdmin={isAdmin} />
     </Suspense>
   );
 }

@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { verifySignedToken, DASHBOARD_COOKIE_NAME } from '@/lib/auth';
+import { isAdminRequest } from '@/lib/adminAuth';
 import { upsertTeamMember, getTeamMember } from '@/lib/db';
-
-function isAdmin() {
-  const c = cookies().get(DASHBOARD_COOKIE_NAME);
-  return c ? verifySignedToken(c.value) === 'dashboard' : false;
-}
 
 // POST /api/admin/team — add a new team member
 export async function POST(req: NextRequest) {
-  if (!isAdmin()) {
+  if (!isAdminRequest()) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

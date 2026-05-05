@@ -68,7 +68,7 @@ function capacityClass(score: number): string {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function DashboardClient() {
+export default function DashboardClient({ isAdmin = false }: { isAdmin?: boolean }) {
   const now = new Date();
   const [currentWeek, setCurrentWeek] = useState<ISOWeek>(() => getISOWeek(now));
   const [data, setData] = useState<DashboardData | null>(null);
@@ -176,12 +176,14 @@ export default function DashboardClient() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
               </button>
-              <a
-                href="/admin"
-                className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
-              >
-                Admin
-              </a>
+              {isAdmin && (
+                <a
+                  href="/admin"
+                  className="text-xs text-gray-400 hover:text-gray-700 underline underline-offset-2 transition-colors"
+                >
+                  Admin
+                </a>
+              )}
               <button
                 onClick={() => fetchData(currentWeek)}
                 className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"

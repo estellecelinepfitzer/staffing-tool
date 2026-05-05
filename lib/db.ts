@@ -127,8 +127,11 @@ function initSchema(db: Database.Database) {
   });
   seedAll();
 
-  // Set admin roles
-  db.prepare("UPDATE team_members SET role = 'admin' WHERE token IN ('christoph-kau', 'estelle-pfz')").run();
+  // Bootstrap: if no admins exist yet, seed the initial two
+  const adminCount = (db.prepare("SELECT COUNT(*) as n FROM team_members WHERE role = 'admin'").get() as { n: number }).n;
+  if (adminCount === 0) {
+    db.prepare("UPDATE team_members SET role = 'admin' WHERE token IN ('christoph-kau', 'estelle-pfz')").run();
+  }
 
   // Seed password hashes on first run (only if passwords table is empty)
   const passwordCount = (db.prepare('SELECT COUNT(*) as n FROM passwords').get() as { n: number }).n;
@@ -549,6 +552,12 @@ export function setMemberCheckin(token: string, checkin: boolean): void {
   getDb()
     .prepare('UPDATE team_members SET checkin = ? WHERE token = ?')
     .run(checkin ? 1 : 0, token);
+}
+
+export function setMemberRole(token: string, role: 'admin' | 'member'): void {
+  getDb()
+    .prepare("UPDATE team_members SET role = ? WHERE token = ?")
+    .run(role, token);
 }
 
 export function getCheckinMembers(): TeamMemberRow[] {

@@ -29,6 +29,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const [editingCategoryLabel, setEditingCategoryLabel] = useState('');
   const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [roleSaving, setRoleSaving] = useState<Record<string, boolean>>({});
   const [passwordReset, setPasswordReset] = useState<Record<string, string>>({});
   const [passwordInput, setPasswordInput] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
@@ -61,6 +62,27 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
   const [adminPwSaving, setAdminPwSaving] = useState(false);
   const [adminPwError, setAdminPwError] = useState<string | null>(null);
   const [adminPwSuccess, setAdminPwSuccess] = useState(false);
+
+  async function handleRoleToggle(token: string, currentRole: string) {
+    const newRole = currentRole === 'admin' ? 'member' : 'admin';
+    if (newRole === 'member' && !confirm(`Remove admin access from this user? They will no longer be able to access the admin page.`)) return;
+    setRoleSaving((s) => ({ ...s, [token]: true }));
+    try {
+      const res = await fetch(`/api/admin/team/${token}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) throw new Error('Failed to update role');
+      setMembers((prev) =>
+        prev.map((m) => (m.token === token ? { ...m, role: newRole } : m)),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error updating role');
+    } finally {
+      setRoleSaving((s) => ({ ...s, [token]: false }));
+    }
+  }
 
   async function handleManagerChange(token: string, managerToken: string) {
     setSaving((s) => ({ ...s, [`manager_${token}`]: true }));
@@ -530,6 +552,7 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Name</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Email</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">Role</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Manager</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Check-in</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-500">Password</th>
@@ -557,6 +580,23 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
 
                     {/* Email */}
                     <td className="px-4 py-3 text-gray-500">{member.email}</td>
+
+                    {/* Role */}
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleRoleToggle(member.token, member.role)}
+                        disabled={roleSaving[member.token] || !isActive}
+                        className={[
+                          'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-40',
+                          member.role === 'admin'
+                            ? 'bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100'
+                            : 'border border-gray-200 text-gray-400 hover:bg-gray-50',
+                        ].join(' ')}
+                        title={member.role === 'admin' ? 'Click to remove admin' : 'Click to make admin'}
+                      >
+                        {member.role === 'admin' ? 'Admin' : 'Member'}
+                      </button>
+                    </td>
 
                     {/* Manager dropdown */}
                     <td className="px-4 py-3">

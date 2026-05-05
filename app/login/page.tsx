@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { Suspense } from 'react';
@@ -8,7 +8,7 @@ import { Suspense } from 'react';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get('from') ?? '/me';
+  const from = searchParams.get('from') ?? '';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,7 +28,12 @@ function LoginForm() {
       });
 
       if (res.ok) {
-        router.push(from.startsWith('/') ? from : '/me');
+        const data = await res.json() as { ok: boolean; token: string };
+        // Always redirect to the user's own /my-reviews unless `from` is a different page
+        const dest = (from && from.startsWith('/') && !from.startsWith('/my-reviews'))
+          ? from
+          : `/my-reviews?token=${data.token}`;
+        router.push(dest);
         router.refresh();
       } else {
         const data = await res.json().catch(() => ({})) as { error?: string };

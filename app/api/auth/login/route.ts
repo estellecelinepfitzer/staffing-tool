@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Incorrect email or password' }, { status: 401 });
   }
 
-  const res = NextResponse.json({ ok: true });
+  const res = NextResponse.json({ ok: true, token: member.token });
 
   // Set primary session cookie (for all users)
   res.cookies.set(COOKIE_NAME, signToken(member.token), COOKIE_OPTS);
