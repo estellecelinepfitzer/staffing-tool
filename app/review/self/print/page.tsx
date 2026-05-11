@@ -115,13 +115,14 @@ export default function SelfReviewPrintPage({ searchParams }: PageProps) {
         <h2>Self-Assessment</h2>
         {questions.map((q) => {
           const val = responses[q.question_key];
+          const comment = responses[`${q.question_key}_comment`];
           return (
             <div key={q.question_key} className="field">
               <div className="label">{q.question_text}</div>
               <div className="value">
                 {val !== '' && val !== undefined
                   ? q.question_type === 'rating'
-                    ? <span className="rating">{val} — {RATING_LABELS[Number(val)]}</span>
+                    ? <><span className="rating">{val} — {RATING_LABELS[Number(val)]}</span>{comment && String(comment).trim() && <div style={{ marginTop: '6px', whiteSpace: 'pre-wrap' }}>{String(comment)}</div>}</>
                     : <span style={{ whiteSpace: 'pre-wrap' }}>{String(val)}</span>
                   : <span style={{ color: '#9ca3af' }}>No response</span>}
               </div>

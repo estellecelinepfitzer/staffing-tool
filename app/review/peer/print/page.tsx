@@ -108,20 +108,25 @@ export default function PeerReviewPrintPage({ searchParams }: PageProps) {
           <>
             <h2>Feedback by Question</h2>
             {peerQuestions.map((q) => {
-              const answers = peerResponseMaps
-                .map((r) => r[q.question_key])
-                .filter((v) => v !== '' && v !== undefined && v !== null);
-              if (answers.length === 0) return null;
+              const peerData = peerResponseMaps
+                .map((r) => ({ answer: r[q.question_key], comment: r[`${q.question_key}_comment`] }))
+                .filter((d) => d.answer !== '' && d.answer !== undefined && d.answer !== null);
+              if (peerData.length === 0) return null;
               return (
                 <div key={q.question_key} className="peer-q">
                   <div className="peer-q-label">{q.question_text}</div>
-                  {answers.map((answer, i) => (
+                  {peerData.map((d, i) => (
                     <div key={i} className="peer-answer">
                       <span className="peer-bullet">–</span>
-                      <span style={{ whiteSpace: 'pre-wrap' }}>
-                        {q.question_type === 'rating'
-                          ? `${answer} — ${RATING_LABELS[Number(answer)] ?? ''}`
-                          : String(answer)}
+                      <span>
+                        {q.question_type === 'rating' ? (
+                          <>
+                            <span style={{ whiteSpace: 'pre-wrap' }}>{`${d.answer} — ${RATING_LABELS[Number(d.answer)] ?? ''}`}</span>
+                            {d.comment && String(d.comment).trim() && <div style={{ color: '#6b7280', marginTop: '2px', whiteSpace: 'pre-wrap' }}>{String(d.comment)}</div>}
+                          </>
+                        ) : (
+                          <span style={{ whiteSpace: 'pre-wrap' }}>{String(d.answer)}</span>
+                        )}
                       </span>
                     </div>
                   ))}
