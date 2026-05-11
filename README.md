@@ -1,4 +1,4 @@
-# MTIP People Platform
+# People Platform
 
 Internal platform for team management, goal tracking, and 360° performance reviews.
 
