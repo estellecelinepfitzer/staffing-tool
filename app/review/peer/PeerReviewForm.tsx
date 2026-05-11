@@ -29,16 +29,19 @@ export default function PeerReviewForm({
   questions,
   managerToken,
 }: Props) {
-  const [answers, setAnswers] = useState<Record<string, string | number>>(() =>
-    Object.fromEntries(
-      questions.map((q) => [
-        q.question_key,
-        q.question_type === 'rating' && existingResponses[q.question_key] !== undefined
-          ? Number(existingResponses[q.question_key])
-          : existingResponses[q.question_key] ?? '',
-      ]),
-    ),
-  );
+  const [answers, setAnswers] = useState<Record<string, string | number>>(() => {
+    const init: Record<string, string | number> = {};
+    for (const q of questions) {
+      if (q.question_type === 'rating' && existingResponses[q.question_key] !== undefined) {
+        init[q.question_key] = Number(existingResponses[q.question_key]);
+      } else {
+        init[q.question_key] = existingResponses[q.question_key] ?? '';
+      }
+      const commentKey = `${q.question_key}_comment`;
+      init[commentKey] = existingResponses[commentKey] ?? '';
+    }
+    return init;
+  });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -85,11 +88,14 @@ export default function PeerReviewForm({
     setValidationError(null);
     setSaving(true);
     try {
-      await Promise.all(
-        questions.filter((q) => q.question_type === 'text').map((q) =>
+      await Promise.all([
+        ...questions.filter((q) => q.question_type === 'text').map((q) =>
           saveField(q.question_key, answers[q.question_key] ?? ''),
         ),
-      );
+        ...questions.filter((q) => q.question_type === 'rating').map((q) =>
+          saveField(`${q.question_key}_comment`, answers[`${q.question_key}_comment`] ?? ''),
+        ),
+      ]);
       const res = await fetch('/api/review/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -162,28 +168,43 @@ export default function PeerReviewForm({
 
               {q.question_type === 'rating' ? (
                 isEditable ? (
-                  <div className="flex gap-3 flex-wrap">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
-                        <input
-                          type="radio"
-                          name={q.question_key}
-                          value={n}
-                          checked={answers[q.question_key] === n}
-                          onChange={() => handleRatingChange(q.question_key, n)}
-                          className="w-4 h-4 accent-[#0080C8]"
-                        />
-                        <span className="text-xs text-gray-500 text-center max-w-[80px]">
-                          {RATING_LABELS[n]}
-                        </span>
-                      </label>
-                    ))}
+                  <div>
+                    <div className="flex gap-3 flex-wrap">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
+                          <input
+                            type="radio"
+                            name={q.question_key}
+                            value={n}
+                            checked={answers[q.question_key] === n}
+                            onChange={() => handleRatingChange(q.question_key, n)}
+                            className="w-4 h-4 accent-[#0080C8]"
+                          />
+                          <span className="text-xs text-gray-500 text-center max-w-[80px]">
+                            {RATING_LABELS[n]}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                    <textarea
+                      rows={2}
+                      className="mt-3 block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
+                      placeholder="Add a comment (optional)…"
+                      value={String(answers[`${q.question_key}_comment`] ?? '')}
+                      onChange={(e) => handleTextChange(`${q.question_key}_comment`, e.target.value)}
+                      onBlur={() => handleTextBlur(`${q.question_key}_comment`)}
+                    />
                   </div>
                 ) : (
-                  <div className="text-sm text-gray-700">
-                    {answers[q.question_key]
-                      ? RATING_LABELS[answers[q.question_key] as number] ?? String(answers[q.question_key])
-                      : <span className="text-gray-400">No response</span>}
+                  <div className="space-y-1">
+                    <div className="text-sm text-gray-700">
+                      {answers[q.question_key]
+                        ? RATING_LABELS[answers[q.question_key] as number] ?? String(answers[q.question_key])
+                        : <span className="text-gray-400">No response</span>}
+                    </div>
+                    {answers[`${q.question_key}_comment`] && (
+                      <p className="text-sm text-gray-600 whitespace-pre-wrap">{answers[`${q.question_key}_comment`]}</p>
+                    )}
                   </div>
                 )
               ) : isEditable ? (
