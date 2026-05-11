@@ -48,15 +48,15 @@ function ScaleToggle({ value, onChange }: { value: Scale; onChange: (s: Scale) =
   );
 }
 
-function TimelineBadge({ timeline }: { timeline: Timeline }) {
+function TimelineBadge({ timeline }: { timeline: string }) {
   return (
     <span className="inline-block rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-400 shrink-0">
-      {TIMELINE_LABELS[timeline]}
+      {TIMELINE_LABELS[timeline as Timeline] ?? timeline}
     </span>
   );
 }
 
-function TimelineSelect({ value, onChange }: { value: Timeline; onChange: (t: Timeline) => void }) {
+function TimelineSelect({ value, onChange }: { value: string; onChange: (t: Timeline) => void }) {
   return (
     <select
       value={value}
@@ -553,7 +553,7 @@ function CompanyGoalEditForm({ goal, onSave, onCancel }: {
   const [title, setTitle] = useState(goal.title);
   const [desc, setDesc] = useState(goal.description);
   const [scale, setScale] = useState<Scale>(goal.scale);
-  const [timeline, setTimeline] = useState<Timeline>(goal.timeline ?? 'full_year');
+  const [timeline, setTimeline] = useState<Timeline>((goal.timeline ?? 'full_year') as Timeline);
   return (
     <div className="space-y-2">
       <input
