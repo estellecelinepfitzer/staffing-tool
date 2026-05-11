@@ -190,9 +190,9 @@ export function goalCommentKey(index: number): string {
 
 /** Rating labels */
 export const RATING_LABELS: Record<number, string> = {
-  1: '1 — Well below expectations',
-  2: '2 — Below expectations',
-  3: '3 — Meets expectations',
-  4: '4 — Exceeds expectations',
-  5: '5 — Exceptional',
+  1: '1 — Significant gap',
+  2: '2 — Developing / inconsistent',
+  3: '3 — Solid / meets expectations',
+  4: '4 — Strong / exceeds expectations',
+  5: '5 — Exceptional / role model',
 };

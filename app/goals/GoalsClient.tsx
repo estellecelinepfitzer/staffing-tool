@@ -660,7 +660,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
               </button>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-1.5">1 = Significant gap · 3 = Solid / meets expectations · 5 = Exceptional / role model</p>
+          <p className="text-xs text-gray-400 mt-1.5">1 = Significant gap · 2 = Developing / inconsistent · 3 = Solid / meets expectations · 4 = Strong / exceeds expectations · 5 = Exceptional / role model</p>
         </div>
       )}
 
