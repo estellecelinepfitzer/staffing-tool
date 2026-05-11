@@ -660,9 +660,9 @@ function QuestionsTabPanel({
           </button>
         ))}
       </div>
-      {tab === 'manager' && (
+      {(tab === 'manager' || tab === 'self') && (
         <div className="mb-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-          The <span className="font-medium">Goals</span> section appears first in the manager review and is managed in the{' '}
+          The <span className="font-medium">Goals</span> section appears first in the {tab === 'self' ? 'self' : 'manager'} review and is managed in the{' '}
           <a href="/goals" className="underline hover:text-gray-700">Goals dashboard</a>.
           Custom questions below appear after goals.
         </div>
