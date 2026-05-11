@@ -638,6 +638,7 @@ function QuestionsTabPanel({
   const tabs = [
     { key: 'self' as const, label: 'Self' },
     { key: 'peer' as const, label: 'Peer' },
+    { key: 'manager' as const, label: 'Manager' },
   ];
 
   const questionsMap = { self: selfQuestions, peer: peerQuestions, manager: managerQuestions };
@@ -659,6 +660,13 @@ function QuestionsTabPanel({
           </button>
         ))}
       </div>
+      {tab === 'manager' && (
+        <div className="mb-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+          The <span className="font-medium">Goals</span> section appears first in the manager review and is managed in the{' '}
+          <a href="/goals" className="underline hover:text-gray-700">Goals dashboard</a>.
+          Custom questions below appear after goals.
+        </div>
+      )}
       <QuestionsPanel
         key={tab}
         cycleId={cycleId}

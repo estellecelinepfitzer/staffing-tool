@@ -130,6 +130,15 @@ function initSchema(db: Database.Database) {
   // Always ensure the two seed admins have admin role (other admins managed via admin page)
   db.prepare("UPDATE team_members SET role = 'admin' WHERE token IN ('christoph-kau', 'estelle-pfz')").run();
 
+  // passwords table must exist before the seed code below queries it
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS passwords (
+      member_token  TEXT PRIMARY KEY,
+      password_hash TEXT NOT NULL,
+      updated_at    TEXT NOT NULL
+    )
+  `);
+
   // Seed password hashes on first run (only if passwords table is empty)
   const passwordCount = (db.prepare('SELECT COUNT(*) as n FROM passwords').get() as { n: number }).n;
   if (passwordCount === 0) {
@@ -231,6 +240,7 @@ function initSchema(db: Database.Database) {
   addColumnIfMissing(db, 'member_goals', 'progress_comment',  "TEXT NOT NULL DEFAULT ''");
   addColumnIfMissing(db, 'member_goals', 'manager_progress',  'REAL');
   addColumnIfMissing(db, 'member_goals', 'manager_comment',   "TEXT NOT NULL DEFAULT ''");
+  addColumnIfMissing(db, 'member_goals', 'timeline',          "TEXT NOT NULL DEFAULT 'full_year'");
 
   // ── Company-level goals ──
   db.exec(`
@@ -242,7 +252,8 @@ function initSchema(db: Database.Database) {
       created_at  TEXT    NOT NULL
     )
   `);
-  addColumnIfMissing(db, 'company_goals', 'scale', "TEXT NOT NULL DEFAULT 'percent_100'");
+  addColumnIfMissing(db, 'company_goals', 'scale',    "TEXT NOT NULL DEFAULT 'percent_100'");
+  addColumnIfMissing(db, 'company_goals', 'timeline', "TEXT NOT NULL DEFAULT 'full_year'");
 
   // ── Cycle questions ──
   db.exec(`
@@ -281,14 +292,6 @@ function initSchema(db: Database.Database) {
   addColumnIfMissing(db, 'team_members', 'password', 'TEXT NOT NULL DEFAULT ""');
   addColumnIfMissing(db, 'team_members', 'manager_token', 'TEXT NOT NULL DEFAULT ""');
   addColumnIfMissing(db, 'review_signoffs', 'released_at', 'TEXT');
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS passwords (
-      member_token  TEXT PRIMARY KEY,
-      password_hash TEXT NOT NULL,
-      updated_at    TEXT NOT NULL
-    )
-  `);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS settings (
@@ -1182,6 +1185,7 @@ export interface CompanyGoal {
   sort_order: number;
   created_at: string;
   scale: 'rating_5' | 'percent_100';
+  timeline: string;
 }
 
 export function getAllCompanyGoals(): CompanyGoal[] {
@@ -1190,20 +1194,21 @@ export function getAllCompanyGoals(): CompanyGoal[] {
     .all() as CompanyGoal[];
 }
 
-export function createCompanyGoal(title: string, description: string, sortOrder: number, scale: string = 'percent_100'): number {
+export function createCompanyGoal(title: string, description: string, sortOrder: number, scale: string = 'percent_100', timeline: string = 'full_year'): number {
   const result = getDb()
-    .prepare('INSERT INTO company_goals (title, description, sort_order, scale, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(title, description, sortOrder, scale, new Date().toISOString());
+    .prepare('INSERT INTO company_goals (title, description, sort_order, scale, timeline, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(title, description, sortOrder, scale, timeline, new Date().toISOString());
   return result.lastInsertRowid as number;
 }
 
-export function updateCompanyGoal(id: number, data: { title?: string; description?: string; sort_order?: number; scale?: string }): void {
+export function updateCompanyGoal(id: number, data: { title?: string; description?: string; sort_order?: number; scale?: string; timeline?: string }): void {
   const fields: string[] = [];
   const values: unknown[] = [];
   if (data.title !== undefined)      { fields.push('title = ?');      values.push(data.title); }
   if (data.description !== undefined){ fields.push('description = ?'); values.push(data.description); }
   if (data.sort_order !== undefined) { fields.push('sort_order = ?'); values.push(data.sort_order); }
   if (data.scale !== undefined)      { fields.push('scale = ?');      values.push(data.scale); }
+  if (data.timeline !== undefined)   { fields.push('timeline = ?');   values.push(data.timeline); }
   if (!fields.length) return;
   values.push(id);
   getDb().prepare(`UPDATE company_goals SET ${fields.join(', ')} WHERE id = ?`).run(...values);
@@ -1222,6 +1227,7 @@ export interface MemberGoalExtended extends MemberGoal {
   description: string;
   progress: number;
   scale: 'rating_5' | 'percent_100';
+  timeline: string;
   progress_comment: string;
   manager_progress: number | null;
   manager_comment: string;
@@ -1253,6 +1259,10 @@ export function updateMemberGoalDescription(id: number, description: string): vo
 
 export function updateMemberGoalScale(id: number, scale: 'rating_5' | 'percent_100'): void {
   getDb().prepare('UPDATE member_goals SET scale = ? WHERE id = ?').run(scale, id);
+}
+
+export function updateMemberGoalTimeline(id: number, timeline: string): void {
+  getDb().prepare('UPDATE member_goals SET timeline = ? WHERE id = ?').run(timeline, id);
 }
 
 export function updateMemberGoalProgressAndComment(id: number, progress: number, comment: string): void {

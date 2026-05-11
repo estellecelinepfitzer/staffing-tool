@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 
 type Scale = 'rating_5' | 'percent_100';
+type Timeline = 'h1' | 'h2' | 'full_year';
 
-interface CompanyGoal { id: number; title: string; description: string; sort_order: number; created_at: string; scale: Scale; }
-interface PersonalGoal { id: number; member_token: string; body: string; description: string; company_goal_id: number | null; progress: number; sort_order: number; created_at: string; scale: Scale; }
+interface CompanyGoal { id: number; title: string; description: string; sort_order: number; created_at: string; scale: Scale; timeline: Timeline; }
+interface PersonalGoal { id: number; member_token: string; body: string; description: string; company_goal_id: number | null; progress: number; sort_order: number; created_at: string; scale: Scale; timeline: Timeline; }
 interface TeamMember { token: string; name: string; }
 
 interface Props {
@@ -14,7 +15,8 @@ interface Props {
   members: TeamMember[];
 }
 
-// Normalize any goal progress to 0–100 for rollup math
+const TIMELINE_LABELS: Record<Timeline, string> = { h1: 'H1', h2: 'H2', full_year: 'Full year' };
+
 function toPercent(progress: number, scale: Scale): number {
   return scale === 'rating_5' ? (progress / 5) * 100 : progress;
 }
@@ -46,6 +48,28 @@ function ScaleToggle({ value, onChange }: { value: Scale; onChange: (s: Scale) =
   );
 }
 
+function TimelineBadge({ timeline }: { timeline: Timeline }) {
+  return (
+    <span className="inline-block rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-400 shrink-0">
+      {TIMELINE_LABELS[timeline]}
+    </span>
+  );
+}
+
+function TimelineSelect({ value, onChange }: { value: Timeline; onChange: (t: Timeline) => void }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as Timeline)}
+      className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+    >
+      <option value="h1">H1</option>
+      <option value="h2">H2</option>
+      <option value="full_year">Full year</option>
+    </select>
+  );
+}
+
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 export default function GoalsClient({ companyGoals: initCG, personalGoals: initPG, members }: Props) {
@@ -58,6 +82,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
   const [newCompanyTitle, setNewCompanyTitle] = useState('');
   const [newCompanyDesc, setNewCompanyDesc] = useState('');
   const [newCompanyScale, setNewCompanyScale] = useState<Scale>('percent_100');
+  const [newCompanyTimeline, setNewCompanyTimeline] = useState<Timeline>('full_year');
   const [addingCompany, setAddingCompany] = useState(false);
   const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
 
@@ -73,9 +98,21 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
   const [newPersonalDesc, setNewPersonalDesc] = useState('');
   const [newPersonalCompanyId, setNewPersonalCompanyId] = useState<number | null>(null);
   const [newPersonalScale, setNewPersonalScale] = useState<Scale>('percent_100');
+  const [newPersonalTimeline, setNewPersonalTimeline] = useState<Timeline>('full_year');
   const [addingPersonal, setAddingPersonal] = useState(false);
 
+  // Timeline filter
+  const [timelineFilter, setTimelineFilter] = useState<Timeline | 'all'>('all');
+
   const memberMap = new Map(members.map((m) => [m.token, m.name]));
+
+  const filteredCompanyGoals = timelineFilter === 'all'
+    ? companyGoals
+    : companyGoals.filter((g) => g.timeline === timelineFilter);
+
+  const filteredPersonalGoals = timelineFilter === 'all'
+    ? personalGoals
+    : personalGoals.filter((g) => g.timeline === timelineFilter);
 
   // ── Company goal CRUD ──────────────────────────────────────────────────────
 
@@ -88,13 +125,14 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
       const res = await fetch('/api/admin/goals/company', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, description: newCompanyDesc.trim(), sort_order: sortOrder, scale: newCompanyScale }),
+        body: JSON.stringify({ title, description: newCompanyDesc.trim(), sort_order: sortOrder, scale: newCompanyScale, timeline: newCompanyTimeline }),
       });
       const data = await res.json() as { id: number };
-      setCompanyGoals((p) => [...p, { id: data.id, title, description: newCompanyDesc.trim(), sort_order: sortOrder, scale: newCompanyScale, created_at: new Date().toISOString() }]);
+      setCompanyGoals((p) => [...p, { id: data.id, title, description: newCompanyDesc.trim(), sort_order: sortOrder, scale: newCompanyScale, timeline: newCompanyTimeline, created_at: new Date().toISOString() }]);
       setNewCompanyTitle('');
       setNewCompanyDesc('');
       setNewCompanyScale('percent_100');
+      setNewCompanyTimeline('full_year');
       setShowAddCompany(false);
     } catch { setError('Failed to add company goal'); }
     finally { setAddingCompany(false); }
@@ -133,18 +171,19 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
       const newGoal: PersonalGoal = {
         id: data.id, member_token: memberToken, body: title,
         description: newPersonalDesc.trim(), company_goal_id: newPersonalCompanyId,
-        progress: 0, scale: newPersonalScale, sort_order: 0, created_at: new Date().toISOString(),
+        progress: 0, scale: newPersonalScale, timeline: newPersonalTimeline, sort_order: 0, created_at: new Date().toISOString(),
       };
       await fetch(`/api/admin/members/${memberToken}/goals/${data.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description: newPersonalDesc.trim(), company_goal_id: newPersonalCompanyId, scale: newPersonalScale }),
+        body: JSON.stringify({ description: newPersonalDesc.trim(), company_goal_id: newPersonalCompanyId, scale: newPersonalScale, timeline: newPersonalTimeline }),
       });
       setPersonalGoals((p) => [...p, newGoal]);
       setNewPersonalTitle('');
       setNewPersonalDesc('');
       setNewPersonalCompanyId(null);
       setNewPersonalScale('percent_100');
+      setNewPersonalTimeline('full_year');
       setShowAddPersonal(null);
     } catch { setError('Failed to add personal goal'); }
     finally { setAddingPersonal(false); }
@@ -190,6 +229,23 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
           </div>
         )}
 
+        {/* Timeline filter */}
+        <div className="flex items-center gap-1.5 mb-6">
+          {(['all', 'h1', 'h2', 'full_year'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setTimelineFilter(f)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors border ${
+                timelineFilter === f
+                  ? 'bg-gray-800 text-white border-gray-800'
+                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              {f === 'all' ? 'All' : TIMELINE_LABELS[f]}
+            </button>
+          ))}
+        </div>
+
         {/* Company goals */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
@@ -220,9 +276,15 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                   placeholder="Description (optional)"
                   className="block w-full rounded-lg border border-gray-200 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal"
                 />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Progress scale:</span>
-                  <ScaleToggle value={newCompanyScale} onChange={setNewCompanyScale} />
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Progress scale:</span>
+                    <ScaleToggle value={newCompanyScale} onChange={setNewCompanyScale} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Timeline:</span>
+                    <TimelineSelect value={newCompanyTimeline} onChange={setNewCompanyTimeline} />
+                  </div>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -239,10 +301,11 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
           )}
 
           <div className="space-y-3">
-            {companyGoals.length === 0 && <p className="text-sm text-gray-400">No company goals yet.</p>}
-            {companyGoals.map((cg) => {
-              const linked = personalGoals.filter((g) => g.company_goal_id === cg.id);
-              const avg = rollup(linked);
+            {filteredCompanyGoals.length === 0 && <p className="text-sm text-gray-400">No company goals{timelineFilter !== 'all' ? ` for ${TIMELINE_LABELS[timelineFilter]}` : ''} yet.</p>}
+            {filteredCompanyGoals.map((cg) => {
+              const linked = filteredPersonalGoals.filter((g) => g.company_goal_id === cg.id);
+              const allLinked = personalGoals.filter((g) => g.company_goal_id === cg.id);
+              const avg = rollup(allLinked);
               const isEditing = editingCompanyId === cg.id;
               const isLinkedExpanded = expandedCompanyGoals.has(cg.id);
 
@@ -267,9 +330,12 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                     ) : (
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-900">{cg.title}</p>
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <p className="text-sm font-semibold text-gray-900">{cg.title}</p>
+                            <TimelineBadge timeline={cg.timeline} />
+                          </div>
                           {cg.description && <p className="text-xs text-gray-500 mt-1">{cg.description}</p>}
-                          {linked.length > 0 && (
+                          {allLinked.length > 0 && (
                             <div className="mt-3">
                               <div className="flex items-center gap-2 mb-1.5">
                                 <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -289,6 +355,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                                 </svg>
                                 {linked.length} linked goal{linked.length !== 1 ? 's' : ''}
+                                {timelineFilter !== 'all' && linked.length !== allLinked.length && ` (${allLinked.length} total)`}
                               </button>
                             </div>
                           )}
@@ -301,7 +368,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                     )}
                   </div>
 
-                  {linked.length > 0 && isLinkedExpanded && (
+                  {allLinked.length > 0 && isLinkedExpanded && (
                     <div className="border-t border-gray-100 divide-y divide-gray-100">
                       {linked.map((pg) => (
                         <PersonalGoalRow
@@ -311,6 +378,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                           companyGoals={companyGoals}
                           onProgressChange={(v) => handleUpdatePersonalGoal(pg, { progress: v })}
                           onScaleChange={(s) => handleUpdatePersonalGoal(pg, { scale: s })}
+                          onTimelineChange={(t) => handleUpdatePersonalGoal(pg, { timeline: t })}
                           onLink={(cgId) => handleUpdatePersonalGoal(pg, { company_goal_id: cgId })}
                           onDelete={() => handleDeletePersonalGoal(pg)}
                         />
@@ -328,10 +396,11 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-3">Personal Goals</h2>
           <div className="space-y-2">
             {members.map((member) => {
-              const memberGoals = personalGoals.filter((g) => g.member_token === member.token);
+              const memberGoals = filteredPersonalGoals.filter((g) => g.member_token === member.token);
+              const allMemberGoals = personalGoals.filter((g) => g.member_token === member.token);
               const isExpanded = expandedMembers.has(member.token);
               const isAddOpen = showAddPersonal === member.token;
-              const avg = rollup(memberGoals);
+              const avg = rollup(allMemberGoals);
 
               function toggleExpand() {
                 setExpandedMembers((prev) => {
@@ -360,14 +429,14 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                       <span className="text-sm font-medium text-gray-800">{member.name}</span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      {memberGoals.length > 0 && (
+                      {allMemberGoals.length > 0 && (
                         <span className="text-xs text-gray-400">
-                          {memberGoals.length} goal{memberGoals.length !== 1 ? 's' : ''}
+                          {memberGoals.length}{memberGoals.length !== allMemberGoals.length ? `/${allMemberGoals.length}` : ''} goal{allMemberGoals.length !== 1 ? 's' : ''}
                           {' · '}
                           <span className="text-gray-600 font-medium">{avg}%</span>
                         </span>
                       )}
-                      {memberGoals.length === 0 && (
+                      {allMemberGoals.length === 0 && (
                         <span className="text-xs text-gray-300">No goals</span>
                       )}
                     </div>
@@ -409,12 +478,16 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                               onChange={(e) => setNewPersonalCompanyId(e.target.value ? Number(e.target.value) : null)}
                               className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
                             >
-                              <option value="">— no company goal —</option>
+                              <option value="">— Personal goal —</option>
                               {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}
                             </select>
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs text-gray-500">Scale:</span>
                               <ScaleToggle value={newPersonalScale} onChange={setNewPersonalScale} />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-gray-500">Timeline:</span>
+                              <TimelineSelect value={newPersonalTimeline} onChange={setNewPersonalTimeline} />
                             </div>
                             <button
                               onClick={() => handleAddPersonalGoal(member.token)}
@@ -427,7 +500,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                         </div>
                       )}
 
-                      {memberGoals.length === 0 && !isAddOpen && (
+                      {allMemberGoals.length === 0 && !isAddOpen && (
                         <p className="px-5 py-3 text-xs text-gray-400 border-t border-gray-100">No goals set.</p>
                       )}
 
@@ -441,11 +514,16 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                               companyGoals={companyGoals}
                               onProgressChange={(v) => handleUpdatePersonalGoal(pg, { progress: v })}
                               onScaleChange={(s) => handleUpdatePersonalGoal(pg, { scale: s })}
+                              onTimelineChange={(t) => handleUpdatePersonalGoal(pg, { timeline: t })}
                               onLink={(cgId) => handleUpdatePersonalGoal(pg, { company_goal_id: cgId })}
                               onDelete={() => handleDeletePersonalGoal(pg)}
                             />
                           ))}
                         </div>
+                      )}
+
+                      {allMemberGoals.length > 0 && memberGoals.length === 0 && !isAddOpen && (
+                        <p className="px-5 py-3 text-xs text-gray-400 border-t border-gray-100">No goals for {TIMELINE_LABELS[timelineFilter as Timeline]}.</p>
                       )}
                     </>
                   )}
@@ -457,7 +535,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
 
         {unlinkedGoals.length > 0 && (
           <div className="mt-6 text-xs text-gray-400 text-center">
-            {unlinkedGoals.length} personal goal{unlinkedGoals.length !== 1 ? 's' : ''} not linked to any company goal
+            {unlinkedGoals.length} standalone personal goal{unlinkedGoals.length !== 1 ? 's' : ''} not linked to a company goal
           </div>
         )}
       </div>
@@ -475,6 +553,7 @@ function CompanyGoalEditForm({ goal, onSave, onCancel }: {
   const [title, setTitle] = useState(goal.title);
   const [desc, setDesc] = useState(goal.description);
   const [scale, setScale] = useState<Scale>(goal.scale);
+  const [timeline, setTimeline] = useState<Timeline>(goal.timeline ?? 'full_year');
   return (
     <div className="space-y-2">
       <input
@@ -491,24 +570,31 @@ function CompanyGoalEditForm({ goal, onSave, onCancel }: {
         placeholder="Description (optional)"
         className="block w-full rounded-lg border border-gray-200 px-3 py-1.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-teal"
       />
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-gray-500">Progress scale:</span>
-        <ScaleToggle value={scale} onChange={setScale} />
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">Progress scale:</span>
+          <ScaleToggle value={scale} onChange={setScale} />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">Timeline:</span>
+          <TimelineSelect value={timeline} onChange={setTimeline} />
+        </div>
       </div>
       <div className="flex gap-2">
-        <button onClick={() => onSave({ title: title.trim(), description: desc.trim(), scale })} disabled={!title.trim()} className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors">Save</button>
+        <button onClick={() => onSave({ title: title.trim(), description: desc.trim(), scale, timeline })} disabled={!title.trim()} className="rounded-lg bg-brand-blue px-3 py-1.5 text-xs font-medium text-white hover:bg-[#006BB0] disabled:opacity-40 transition-colors">Save</button>
         <button onClick={onCancel} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
       </div>
     </div>
   );
 }
 
-function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onScaleChange, onLink, onDelete }: {
+function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onScaleChange, onTimelineChange, onLink, onDelete }: {
   goal: PersonalGoal;
   memberName: string;
   companyGoals: { id: number; title: string }[];
   onProgressChange: (v: number) => void;
   onScaleChange: (s: Scale) => void;
+  onTimelineChange: (t: Timeline) => void;
   onLink: (cgId: number | null) => void;
   onDelete: () => void;
 }) {
@@ -516,7 +602,6 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
   const [localProgress, setLocalProgress] = useState(goal.progress);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Sync local slider with parent state (handles updates from other views)
   useEffect(() => {
     if (!isDragging) setLocalProgress(goal.progress);
   }, [goal.progress, isDragging]);
@@ -532,7 +617,10 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex-1 min-w-0">
           {memberName && <p className="text-xs text-gray-400 mb-0.5">{memberName}</p>}
-          <p className="text-sm text-gray-800">{goal.body}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-gray-800">{goal.body}</p>
+            <TimelineBadge timeline={goal.timeline ?? 'full_year'} />
+          </div>
           {goal.description && <p className="text-xs text-gray-500 mt-0.5">{goal.description}</p>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -560,25 +648,34 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
           <span className="text-xs text-gray-500 w-10 text-right">{localProgress}%</span>
         </div>
       ) : (
-        <div className="flex gap-2">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              onClick={() => handleProgressCommit(n)}
-              className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${localProgress === n ? 'bg-brand-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-            >
-              {n}
-            </button>
-          ))}
+        <div>
+          <div className="flex gap-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                onClick={() => handleProgressCommit(n)}
+                className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${localProgress === n ? 'bg-brand-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-gray-400 mt-1.5">1 = Significant gap · 3 = Solid / meets expectations · 5 = Exceptional / role model</p>
         </div>
       )}
 
       {/* Edit panel */}
       {editing && (
         <div className="mt-3 space-y-2 pt-2 border-t border-gray-100">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Scale:</span>
-            <ScaleToggle value={goal.scale} onChange={onScaleChange} />
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Scale:</span>
+              <ScaleToggle value={goal.scale} onChange={onScaleChange} />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500">Timeline:</span>
+              <TimelineSelect value={goal.timeline ?? 'full_year'} onChange={onTimelineChange} />
+            </div>
           </div>
           <div>
             <label className="text-xs text-gray-500 block mb-1">Link to company goal</label>
@@ -587,7 +684,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
               onChange={(e) => onLink(e.target.value ? Number(e.target.value) : null)}
               className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
             >
-              <option value="">— none —</option>
+              <option value="">— Personal goal —</option>
               {companyGoals.map((cg) => <option key={cg.id} value={cg.id}>{cg.title}</option>)}
             </select>
           </div>

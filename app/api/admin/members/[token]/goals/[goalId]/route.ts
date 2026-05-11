@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminAuthenticated } from '@/lib/adminAuth';
-import { updateMemberGoal, deleteMemberGoal, updateMemberGoalProgress, updateMemberGoalCompanyLink, updateMemberGoalDescription, updateMemberGoalScale } from '@/lib/db';
+import { updateMemberGoal, deleteMemberGoal, updateMemberGoalProgress, updateMemberGoalCompanyLink, updateMemberGoalDescription, updateMemberGoalScale, updateMemberGoalTimeline } from '@/lib/db';
 
 export async function PATCH(
   request: NextRequest,
@@ -11,7 +11,7 @@ export async function PATCH(
   const id = parseInt(params.goalId, 10);
   if (isNaN(id)) return NextResponse.json({ error: 'Invalid goalId' }, { status: 400 });
 
-  const body = await request.json() as { body?: string; progress?: number; company_goal_id?: number | null; description?: string; scale?: string };
+  const body = await request.json() as { body?: string; progress?: number; company_goal_id?: number | null; description?: string; scale?: string; timeline?: string };
 
   if (body.body !== undefined) {
     if (!body.body.trim()) return NextResponse.json({ error: 'body required' }, { status: 400 });
@@ -21,6 +21,7 @@ export async function PATCH(
   if ('company_goal_id' in body) updateMemberGoalCompanyLink(id, body.company_goal_id ?? null);
   if (body.description !== undefined) updateMemberGoalDescription(id, body.description);
   if (body.scale !== undefined) updateMemberGoalScale(id, body.scale as 'rating_5' | 'percent_100');
+  if (body.timeline !== undefined) updateMemberGoalTimeline(id, body.timeline);
 
   return NextResponse.json({ ok: true });
 }
