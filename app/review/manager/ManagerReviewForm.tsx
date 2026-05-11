@@ -434,7 +434,7 @@ export default function ManagerReviewForm({
               {q.question_type === 'rating' ? (
                 isEditable ? (
                   <div>
-                    <div className="flex gap-3 flex-wrap">
+                    <div className="flex gap-5">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
                           <input
@@ -445,16 +445,17 @@ export default function ManagerReviewForm({
                             onChange={() => handleRatingChange(q.question_key, n)}
                             className="w-4 h-4 accent-[#0080C8]"
                           />
-                          <span className="text-xs text-gray-500 text-center max-w-[80px]">
-                            {RATING_LABELS[n]}
-                          </span>
+                          <span className="text-xs text-gray-500">{n}</span>
                         </label>
                       ))}
                     </div>
+                    {answers[q.question_key] !== '' && answers[q.question_key] !== undefined && (
+                      <p className="text-xs text-gray-500 mt-1.5">{RATING_LABELS[answers[q.question_key] as number]}</p>
+                    )}
                     <textarea
                       rows={2}
                       className="mt-3 block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
-                      placeholder="Add a comment (optional)…"
+                      placeholder="Add a comment…"
                       value={String(answers[`${q.question_key}_comment`] ?? '')}
                       onChange={(e) => handleTextChange(`${q.question_key}_comment`, e.target.value)}
                       onBlur={() => handleTextBlur(`${q.question_key}_comment`)}
