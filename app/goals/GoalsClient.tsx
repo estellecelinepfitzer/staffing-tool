@@ -5,8 +5,8 @@ import { useState, useEffect } from 'react';
 type Scale = 'rating_5' | 'percent_100';
 type Timeline = 'h1' | 'h2' | 'full_year';
 
-interface CompanyGoal { id: number; title: string; description: string; sort_order: number; created_at: string; scale: Scale; timeline: Timeline; }
-interface PersonalGoal { id: number; member_token: string; body: string; description: string; company_goal_id: number | null; progress: number; sort_order: number; created_at: string; scale: Scale; timeline: Timeline; }
+interface CompanyGoal { id: number; title: string; description: string; sort_order: number; created_at: string; scale: Scale; timeline: string; }
+interface PersonalGoal { id: number; member_token: string; body: string; description: string; company_goal_id: number | null; progress: number; sort_order: number; created_at: string; scale: Scale; timeline: string; }
 interface TeamMember { token: string; name: string; }
 
 interface Props {
