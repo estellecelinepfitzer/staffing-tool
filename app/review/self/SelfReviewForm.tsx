@@ -122,11 +122,35 @@ export default function SelfReviewForm({
   }
 
   async function handleSubmit() {
-    const missing = questions.filter(
-      (q) => q.required === 1 && (answers[q.question_key] === '' || answers[q.question_key] === undefined),
-    );
-    if (missing.length > 0) {
-      setValidationError(`Please fill in all required fields (*): ${missing.map((q) => q.question_text).join(', ')}`);
+    const missingItems: string[] = [];
+
+    // All questions are required
+    for (const q of questions) {
+      if (answers[q.question_key] === '' || answers[q.question_key] === undefined || answers[q.question_key] === 0) {
+        missingItems.push(q.question_text);
+      }
+      if (q.question_type === 'rating') {
+        const commentKey = `${q.question_key}_comment`;
+        if (!String(answers[commentKey] ?? '').trim()) {
+          missingItems.push(`${q.question_text} — comment`);
+        }
+      }
+    }
+
+    // All goals require progress (rating_5) and a comment
+    for (const goal of goals) {
+      const state = goalStates[goal.id];
+      if (goal.scale === 'rating_5' && (!state.progress || state.progress === 0)) {
+        missingItems.push(`"${goal.body}" — progress rating`);
+      }
+      if (!state.comment?.trim()) {
+        missingItems.push(`"${goal.body}" — comment`);
+      }
+    }
+
+    if (missingItems.length > 0) {
+      setValidationError(missingItems.join('||'));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     setValidationError(null);
@@ -295,7 +319,6 @@ export default function SelfReviewForm({
             <div key={q.question_key} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 {q.question_text}
-                {q.required === 1 && <span className="text-gray-400 ml-1">*</span>}
               </label>
               {q.question_type === 'rating' ? (
                 isEditable ? (
@@ -359,7 +382,14 @@ export default function SelfReviewForm({
           {isEditable && (
             <div className="pt-2 pb-8 space-y-3">
               {validationError && (
-                <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">{validationError}</p>
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-sm font-medium text-red-700 mb-1">Please complete all fields before submitting:</p>
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {validationError.split('||').map((item, i) => (
+                      <li key={i} className="text-sm text-red-600">{item}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
               <button
                 onClick={handleSubmit}

@@ -45,31 +45,6 @@ interface ManagerGoalState {
   managerComment: string;
 }
 
-function Collapsible({ title, children }: { title: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="bg-white rounded-xl border border-gray-200">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left"
-      >
-        <span className="text-sm font-medium text-gray-900">{title}</span>
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && <div className="px-5 pb-5 border-t border-gray-100 pt-4">{children}</div>}
-    </div>
-  );
-}
-
 function RatingDisplay({ value }: { value: string | number }) {
   if (value === '' || value === undefined) return <span className="text-gray-400 text-sm">No response</span>;
   const n = Number(value);
@@ -111,6 +86,7 @@ export default function ManagerReviewForm({
   );
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [released, setReleased] = useState(isReleasedProp);
   const [releasing, setReleasing] = useState(false);
   const [releaseConfirmStep, setReleaseConfirmStep] = useState(false);
@@ -154,6 +130,35 @@ export default function ManagerReviewForm({
     ]);
   }
 
+  function validate(): string | null {
+    const missing: string[] = [];
+
+    for (const goal of goals) {
+      const state = managerGoalStates[goal.id];
+      if (goal.scale === 'rating_5' && (!state.managerProgress || state.managerProgress === 0)) {
+        missing.push(`"${goal.body}" — manager progress rating`);
+      }
+      if (!state.managerComment?.trim()) {
+        missing.push(`"${goal.body}" — manager comment`);
+      }
+    }
+
+    for (const q of questions) {
+      if (answers[q.question_key] === '' || answers[q.question_key] === undefined || answers[q.question_key] === 0) {
+        missing.push(q.question_text);
+      }
+      if (q.question_type === 'rating') {
+        const commentKey = `${q.question_key}_comment`;
+        if (!String(answers[commentKey] ?? '').trim()) {
+          missing.push(`${q.question_text} — comment`);
+        }
+      }
+    }
+
+    if (missing.length === 0) return null;
+    return `Please complete all fields before saving:\n• ${missing.join('\n• ')}`;
+  }
+
   function updateManagerGoal(goalId: number, patch: Partial<ManagerGoalState>) {
     setManagerGoalStates((prev) => ({ ...prev, [goalId]: { ...prev[goalId], ...patch } }));
   }
@@ -182,6 +187,13 @@ export default function ManagerReviewForm({
   }
 
   async function handleSave() {
+    const err = validate();
+    if (err) {
+      setValidationError(err);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setValidationError(null);
     setSaveStatus('saving');
     try {
       await saveAllFields();
@@ -193,6 +205,14 @@ export default function ManagerReviewForm({
   }
 
   async function handleRelease() {
+    const err = validate();
+    if (err) {
+      setValidationError(err);
+      setReleaseConfirmStep(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    setValidationError(null);
     setReleasing(true);
     try {
       await saveAllFields();
@@ -228,7 +248,6 @@ export default function ManagerReviewForm({
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{cycleName}</p>
             <h1 className="text-xl font-semibold text-gray-900">Manager review — {subjectName}</h1>
           </div>
-          {/* Download buttons for self-review and peer feedback at top */}
           <div className="flex flex-col gap-1.5 items-end shrink-0">
             <a
               href={selfPdfHref}
@@ -250,6 +269,18 @@ export default function ManagerReviewForm({
             )}
           </div>
         </div>
+
+        {/* Validation error banner */}
+        {validationError && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
+            <p className="text-sm font-medium text-red-700 mb-1">Please complete all fields before saving:</p>
+            <ul className="list-disc list-inside space-y-0.5">
+              {validationError.split('\n• ').slice(1).map((item, i) => (
+                <li key={i} className="text-sm text-red-600">{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="space-y-4">
 
@@ -319,18 +350,27 @@ export default function ManagerReviewForm({
                           </div>
                         ) : (
                           <span className="text-xs text-gray-700">
-                            {displayProgress > 0 ? `${displayProgress} / 5` : <span className="text-gray-400">—</span>}
+                            {displayProgress > 0 ? RATING_LABELS[displayProgress] : <span className="text-gray-400">—</span>}
                           </span>
                         )}
                       </div>
 
-                      {/* Employee self-reported comment */}
-                      {goal.progress_comment ? (
-                        <div className="mb-3">
-                          <p className="text-xs font-medium text-gray-400 mb-1">Employee comment</p>
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap">{goal.progress_comment}</p>
-                        </div>
-                      ) : null}
+                      {/* Employee self-reported progress + comment */}
+                      <div className="mb-3 pl-3 border-l-2 border-gray-100">
+                        <p className="text-xs font-medium text-gray-400 mb-1">Employee self-assessment</p>
+                        {goal.scale === 'rating_5' ? (
+                          <p className="text-xs text-gray-600">
+                            {goal.progress > 0 ? RATING_LABELS[goal.progress] : <span className="text-gray-400">No rating</span>}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-600">{Math.round(goal.progress)}%</p>
+                        )}
+                        {goal.progress_comment ? (
+                          <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{goal.progress_comment}</p>
+                        ) : (
+                          <p className="text-xs text-gray-400 mt-0.5">No comment</p>
+                        )}
+                      </div>
 
                       {/* Manager comment */}
                       <div>
@@ -357,62 +397,96 @@ export default function ManagerReviewForm({
             </div>
           )}
 
-          {/* ── Self-review collapsible ── */}
-          <Collapsible title="Self-review">
+          {/* ── Self-review — always expanded ── */}
+          <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+            <p className="text-sm font-medium text-gray-700 mb-4">Self-review — {subjectName}</p>
             <div className="space-y-4">
               {selfQuestions.length > 0
                 ? selfQuestions.map((q) => {
                     const val = selfReviewResponses[q.question_key];
+                    const comment = selfReviewResponses[`${q.question_key}_comment`];
                     return (
-                      <div key={q.question_key} className="mb-4 last:mb-0">
-                        <p className="text-xs font-medium text-gray-500 mb-1">{q.question_text}</p>
+                      <div key={q.question_key} className="border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">{q.question_text}</p>
                         {q.question_type === 'rating' ? (
-                          val !== undefined && val !== ''
-                            ? <span className="text-sm text-gray-800">{RATING_LABELS[Number(val)] ?? val}</span>
-                            : <span className="text-sm text-gray-400">No response</span>
+                          <>
+                            {val !== undefined && val !== ''
+                              ? <span className="text-sm text-gray-800">{RATING_LABELS[Number(val)] ?? String(val)}</span>
+                              : <span className="text-sm text-gray-400">No response</span>}
+                            {comment && String(comment).trim() && (
+                              <div className="mt-2 pl-3 border-l-2 border-gray-100">
+                                <p className="text-xs font-medium text-gray-400 mb-0.5">Employee comment</p>
+                                <p className="text-sm text-gray-700 whitespace-pre-wrap">{String(comment)}</p>
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <div className="text-sm text-gray-800 whitespace-pre-wrap">
                             {val !== undefined && val !== ''
-                              ? val
+                              ? String(val)
                               : <span className="text-gray-400">No response</span>}
                           </div>
                         )}
                       </div>
                     );
                   })
-                : Object.entries(selfReviewResponses).map(([key, val]) => (
-                    <div key={key} className="mb-4 last:mb-0">
-                      <p className="text-xs font-medium text-gray-500 mb-1">{key}</p>
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap">
-                        {val !== '' && val !== undefined ? val : <span className="text-gray-400">No response</span>}
-                      </div>
-                    </div>
-                  ))
+                : Object.entries(selfReviewResponses)
+                    .filter(([key]) => !key.endsWith('_comment'))
+                    .map(([key, val]) => {
+                      const comment = selfReviewResponses[`${key}_comment`];
+                      return (
+                        <div key={key} className="border-b border-gray-50 pb-4 last:border-0 last:pb-0">
+                          <p className="text-xs font-medium text-gray-500 mb-1.5">{key}</p>
+                          <div className="text-sm text-gray-800 whitespace-pre-wrap">
+                            {val !== '' && val !== undefined ? String(val) : <span className="text-gray-400">No response</span>}
+                          </div>
+                          {comment && String(comment).trim() && (
+                            <div className="mt-2 pl-3 border-l-2 border-gray-100">
+                              <p className="text-xs font-medium text-gray-400 mb-0.5">Employee comment</p>
+                              <p className="text-sm text-gray-700 whitespace-pre-wrap">{String(comment)}</p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
               }
             </div>
-          </Collapsible>
+          </div>
 
-          {/* ── Peer feedback — per-question, anonymous ── */}
+          {/* ── Peer feedback — always expanded ── */}
           {peerReviews.length > 0 && (
-            <Collapsible title={`Peer feedback (${peerReviews.length} reviewer${peerReviews.length !== 1 ? 's' : ''})`}>
+            <div className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+              <p className="text-sm font-medium text-gray-700 mb-4">
+                Peer feedback — {peerReviews.length} reviewer{peerReviews.length !== 1 ? 's' : ''}
+              </p>
               <div className="space-y-5">
                 {peerQuestions.map((q) => {
-                  const peerAnswers = peerReviews
-                    .map((peer) => peer.responses[q.question_key])
-                    .filter((v) => v !== '' && v !== undefined && v !== null);
-                  if (peerAnswers.length === 0) return null;
+                  const peerData = peerReviews
+                    .map((peer) => ({
+                      answer: peer.responses[q.question_key],
+                      comment: peer.responses[`${q.question_key}_comment`],
+                    }))
+                    .filter((d) => d.answer !== '' && d.answer !== undefined && d.answer !== null);
+                  if (peerData.length === 0) return null;
                   return (
-                    <div key={q.question_key}>
+                    <div key={q.question_key} className="border-b border-gray-50 pb-5 last:border-0 last:pb-0">
                       <p className="text-xs font-semibold text-gray-600 mb-2">{q.question_text}</p>
-                      <ul className="space-y-1.5">
-                        {peerAnswers.map((answer, i) => (
+                      <ul className="space-y-2.5">
+                        {peerData.map((d, i) => (
                           <li key={i} className="flex gap-2">
                             <span className="text-gray-300 mt-0.5 shrink-0">–</span>
-                            {q.question_type === 'rating' ? (
-                              <span className="text-sm text-gray-700">{RATING_LABELS[Number(answer)] ?? String(answer)}</span>
-                            ) : (
-                              <span className="text-sm text-gray-700 whitespace-pre-wrap">{String(answer)}</span>
-                            )}
+                            <div>
+                              {q.question_type === 'rating' ? (
+                                <>
+                                  <span className="text-sm text-gray-700">{RATING_LABELS[Number(d.answer)] ?? String(d.answer)}</span>
+                                  {d.comment && String(d.comment).trim() && (
+                                    <p className="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{String(d.comment)}</p>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-sm text-gray-700 whitespace-pre-wrap">{String(d.answer)}</span>
+                              )}
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -420,7 +494,7 @@ export default function ManagerReviewForm({
                   );
                 })}
               </div>
-            </Collapsible>
+            </div>
           )}
 
           {/* ── Manager review questions ── */}
@@ -428,7 +502,6 @@ export default function ManagerReviewForm({
             <div key={q.question_key} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
               <label className="block text-sm font-medium text-gray-700 mb-3">
                 {q.question_text}
-                {q.required === 1 && <span className="text-gray-400 ml-1">*</span>}
               </label>
 
               {q.question_type === 'rating' ? (
@@ -489,7 +562,6 @@ export default function ManagerReviewForm({
           {/* ── Actions ── */}
           {isEditable && !released && (
             <div className="pt-2 pb-4 space-y-3">
-              {/* Save button */}
               <button
                 onClick={handleSave}
                 disabled={saveStatus === 'saving'}
@@ -501,7 +573,6 @@ export default function ManagerReviewForm({
                 <p className="text-center text-sm text-green-600">Saved</p>
               )}
 
-              {/* Release section */}
               {!releaseConfirmStep ? (
                 <button
                   onClick={() => setReleaseConfirmStep(true)}
@@ -539,7 +610,6 @@ export default function ManagerReviewForm({
             </div>
           )}
 
-          {/* Download manager review PDF — bottom */}
           <div className="pb-8 space-y-3">
             <a
               href={`/my-reviews?token=${managerToken}`}
