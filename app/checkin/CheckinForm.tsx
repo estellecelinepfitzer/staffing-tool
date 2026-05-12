@@ -67,28 +67,19 @@ interface Props {
 export default function CheckinForm({ member, existing, isoWeek, isoYear, today, weekLabel, token, goals, categories, weekLocked }: Props) {
   const isUpdate = !!existing;
 
-  // Build initial category state from existing data
   const initCategoryData = (): Record<number, { notes: string; days: number }> => {
     const init: Record<number, { notes: string; days: number }> = {};
     for (const cat of categories) {
       init[cat.id] = { notes: '', days: 0 };
     }
-    if (existing?.category_responses) {
-      const maxDays = existing.working_days ?? 0;
-      for (const cr of existing.category_responses) {
-        if (init[cr.category_id] !== undefined) {
-          init[cr.category_id] = { notes: cr.notes, days: maxDays === 0 ? 0 : cr.days };
-        }
-      }
-    }
     return init;
   };
 
   const [date, setDate] = useState(today);
-  const [mood, setMood] = useState<number | null>(existing?.mood ?? null);
-  const [capacity, setCapacity] = useState<number | null>(existing?.capacity ?? null);
+  const [mood, setMood] = useState<number | null>(null);
+  const [capacity, setCapacity] = useState<number | null>(null);
   const [categoryData, setCategoryData] = useState<Record<number, { notes: string; days: number }>>(initCategoryData);
-  const [workingDays, setWorkingDays] = useState<number>(existing?.working_days ?? 0);
+  const [workingDays, setWorkingDays] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
