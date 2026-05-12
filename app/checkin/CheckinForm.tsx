@@ -72,14 +72,21 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
     for (const cat of categories) {
       init[cat.id] = { notes: '', days: 0 };
     }
+    if (existing?.category_responses) {
+      for (const cr of existing.category_responses) {
+        if (init[cr.category_id] !== undefined) {
+          init[cr.category_id] = { notes: cr.notes, days: cr.days };
+        }
+      }
+    }
     return init;
   };
 
   const [date, setDate] = useState(today);
-  const [mood, setMood] = useState<number | null>(null);
-  const [capacity, setCapacity] = useState<number | null>(null);
+  const [mood, setMood] = useState<number | null>(existing?.mood ?? null);
+  const [capacity, setCapacity] = useState<number | null>(existing?.capacity ?? null);
   const [categoryData, setCategoryData] = useState<Record<number, { notes: string; days: number }>>(initCategoryData);
-  const [workingDays, setWorkingDays] = useState<number>(0);
+  const [workingDays, setWorkingDays] = useState<number>(existing?.working_days ?? 0);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
