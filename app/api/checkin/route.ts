@@ -38,6 +38,18 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
+  try {
+    return await handlePost(body);
+  } catch (err) {
+    console.error('[POST /api/checkin]', err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Server error' },
+      { status: 500 },
+    );
+  }
+}
+
+async function handlePost(body: Record<string, unknown>): Promise<NextResponse> {
 
   const token = typeof body.token === 'string' ? body.token.trim() : '';
   if (!token) {

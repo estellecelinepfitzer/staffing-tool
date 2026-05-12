@@ -462,7 +462,7 @@ export function getCheckin(memberToken: string, isoWeek: number, isoYear: number
 }
 
 export function upsertCheckin(data: Omit<Checkin, 'id'>): number {
-  const result = getDb()
+  getDb()
     .prepare(`
       INSERT INTO checkins
         (member_token, member_name, iso_week, iso_year, submitted_at,
@@ -493,12 +493,13 @@ export function upsertCheckin(data: Omit<Checkin, 'id'>): number {
       data.working_days, data.sourcing_days, data.converting_days,
       data.execution_days, data.portfolio_exits_days, data.portfolio_other_days,
     );
-  // For ON CONFLICT updates, lastInsertRowid returns the rowid of the existing row.
-  if (result.lastInsertRowid) return result.lastInsertRowid as number;
+  // Always SELECT the ID after upsert — lastInsertRowid is 0 for ON CONFLICT DO UPDATE
+  // (no new row inserted), so we cannot rely on it for the update path.
   const row = getDb()
     .prepare('SELECT id FROM checkins WHERE member_token = ? AND iso_week = ? AND iso_year = ?')
     .get(data.member_token, data.iso_week, data.iso_year) as { id: number } | undefined;
-  return row?.id ?? 0;
+  if (!row) throw new Error(`upsertCheckin: row not found after upsert (token=${data.member_token} week=${data.iso_week}/${data.iso_year})`);
+  return row.id;
 }
 
 export function getWeekCheckins(isoWeek: number, isoYear: number): Checkin[] {
