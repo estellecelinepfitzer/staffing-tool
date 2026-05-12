@@ -74,9 +74,10 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
       init[cat.id] = { notes: '', days: 0 };
     }
     if (existing?.category_responses) {
+      const maxDays = existing.working_days ?? 0;
       for (const cr of existing.category_responses) {
         if (init[cr.category_id] !== undefined) {
-          init[cr.category_id] = { notes: cr.notes, days: cr.days };
+          init[cr.category_id] = { notes: cr.notes, days: maxDays === 0 ? 0 : cr.days };
         }
       }
     }
@@ -118,17 +119,19 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
     if (!mood) { setError('Please select how you are feeling today.'); return; }
     if (!capacity) { setError('Please select your capacity this week.'); return; }
 
-    const errors: Record<number, string> = {};
-    for (const cat of categories) {
-      const data = categoryData[cat.id];
-      if ((data?.days ?? 0) > 0 && !data?.notes.trim()) {
-        errors[cat.id] = 'Required — please add at least a brief note.';
+    if (!isUpdate) {
+      const errors: Record<number, string> = {};
+      for (const cat of categories) {
+        const data = categoryData[cat.id];
+        if ((data?.days ?? 0) > 0 && !data?.notes.trim()) {
+          errors[cat.id] = 'Required — please add at least a brief note.';
+        }
       }
-    }
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      setError('Please fill in all deal pipeline notes before submitting.');
-      return;
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        setError('Please fill in all deal pipeline notes before submitting.');
+        return;
+      }
     }
     setFieldErrors({});
 
@@ -138,7 +141,7 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
     try {
       const categoryResponses = categories.map((cat) => ({
         category_id: cat.id,
-        days: categoryData[cat.id]?.days ?? 0,
+        days: workingDays === 0 ? 0 : (categoryData[cat.id]?.days ?? 0),
         notes: categoryData[cat.id]?.notes ?? '',
       }));
 
