@@ -34,7 +34,7 @@ function ChangePasswordForm() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { error?: string }).error ?? 'Something went wrong');
       setSuccess(true);
-      setTimeout(() => router.push(`/checkin?token=${token}`), 2000);
+      setTimeout(() => router.push(`/my-reviews?token=${token}`), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -51,7 +51,7 @@ function ChangePasswordForm() {
           </svg>
         </div>
         <h1 className="text-lg font-semibold text-gray-900 mb-1">Password changed</h1>
-        <p className="text-sm text-gray-500">Redirecting to your check-in…</p>
+        <p className="text-sm text-gray-500">Redirecting to your dashboard…</p>
       </div>
     );
   }
@@ -60,13 +60,13 @@ function ChangePasswordForm() {
     <>
       <div className="mb-2">
         <a
-          href={`/checkin?token=${token}`}
+          href={`/my-reviews?token=${token}`}
           className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 transition-colors"
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          Back to check-in
+          Back to dashboard
         </a>
       </div>
 
