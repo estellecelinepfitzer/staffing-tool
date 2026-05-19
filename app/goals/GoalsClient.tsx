@@ -380,6 +380,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                           onScaleChange={(s) => handleUpdatePersonalGoal(pg, { scale: s })}
                           onTimelineChange={(t) => handleUpdatePersonalGoal(pg, { timeline: t })}
                           onLink={(cgId) => handleUpdatePersonalGoal(pg, { company_goal_id: cgId })}
+                          onBodyChange={(b) => handleUpdatePersonalGoal(pg, { body: b })}
                           onDelete={() => handleDeletePersonalGoal(pg)}
                         />
                       ))}
@@ -516,6 +517,7 @@ export default function GoalsClient({ companyGoals: initCG, personalGoals: initP
                               onScaleChange={(s) => handleUpdatePersonalGoal(pg, { scale: s })}
                               onTimelineChange={(t) => handleUpdatePersonalGoal(pg, { timeline: t })}
                               onLink={(cgId) => handleUpdatePersonalGoal(pg, { company_goal_id: cgId })}
+                              onBodyChange={(b) => handleUpdatePersonalGoal(pg, { body: b })}
                               onDelete={() => handleDeletePersonalGoal(pg)}
                             />
                           ))}
@@ -588,7 +590,7 @@ function CompanyGoalEditForm({ goal, onSave, onCancel }: {
   );
 }
 
-function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onScaleChange, onTimelineChange, onLink, onDelete }: {
+function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onScaleChange, onTimelineChange, onLink, onBodyChange, onDelete }: {
   goal: PersonalGoal;
   memberName: string;
   companyGoals: { id: number; title: string }[];
@@ -596,9 +598,12 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
   onScaleChange: (s: Scale) => void;
   onTimelineChange: (t: Timeline) => void;
   onLink: (cgId: number | null) => void;
+  onBodyChange: (body: string) => void;
   onDelete: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [editingBody, setEditingBody] = useState(false);
+  const [bodyDraft, setBodyDraft] = useState(goal.body);
   const [localProgress, setLocalProgress] = useState(goal.progress);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -606,10 +611,21 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
     if (!isDragging) setLocalProgress(goal.progress);
   }, [goal.progress, isDragging]);
 
+  useEffect(() => {
+    if (!editingBody) setBodyDraft(goal.body);
+  }, [goal.body, editingBody]);
+
   function handleProgressCommit(v: number) {
     setLocalProgress(v);
     setIsDragging(false);
     onProgressChange(v);
+  }
+
+  function commitBody() {
+    const trimmed = bodyDraft.trim();
+    if (trimmed && trimmed !== goal.body) onBodyChange(trimmed);
+    else setBodyDraft(goal.body);
+    setEditingBody(false);
   }
 
   return (
@@ -618,7 +634,25 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
         <div className="flex-1 min-w-0">
           {memberName && <p className="text-xs text-gray-400 mb-0.5">{memberName}</p>}
           <div className="flex items-center gap-2">
-            <p className="text-sm text-gray-800">{goal.body}</p>
+            {editingBody ? (
+              <input
+                type="text"
+                value={bodyDraft}
+                onChange={(e) => setBodyDraft(e.target.value)}
+                onBlur={commitBody}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitBody(); if (e.key === 'Escape') { setBodyDraft(goal.body); setEditingBody(false); } }}
+                className="flex-1 rounded border border-gray-200 px-2 py-0.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+                autoFocus
+              />
+            ) : (
+              <p
+                className="text-sm text-gray-800 cursor-text hover:text-gray-600"
+                onClick={() => setEditingBody(true)}
+                title="Click to edit"
+              >
+                {goal.body}
+              </p>
+            )}
             <TimelineBadge timeline={goal.timeline ?? 'full_year'} />
           </div>
           {goal.description && <p className="text-xs text-gray-500 mt-0.5">{goal.description}</p>}
@@ -653,7 +687,7 @@ function PersonalGoalRow({ goal, memberName, companyGoals, onProgressChange, onS
             {[1, 2, 3, 4, 5].map((n) => (
               <button
                 key={n}
-                onClick={() => handleProgressCommit(n)}
+                onClick={() => handleProgressCommit(localProgress === n ? 0 : n)}
                 className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${localProgress === n ? 'bg-brand-blue text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               >
                 {n}
