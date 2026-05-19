@@ -1160,6 +1160,64 @@ export function getCheckinResponsesForWeek(isoWeek: number, isoYear: number): Ch
     .all(isoWeek, isoYear) as CheckinResponse[];
 }
 
+// ─── YTD trend aggregations ───────────────────────────────────────────────────
+
+export interface TrendRow {
+  member_token: string;
+  member_name: string;
+  category_label: string;
+  total_days: number;
+}
+
+export function getYTDTrendByMember(): TrendRow[] {
+  return getDb().prepare(`
+    SELECT member_token, member_name, category_label, SUM(total_days) AS total_days
+    FROM (
+      SELECT c.member_token, c.member_name, cr.category_label, cr.days AS total_days
+      FROM checkin_responses cr
+      JOIN checkins c ON c.id = cr.checkin_id
+      WHERE cr.days > 0
+
+      UNION ALL
+
+      SELECT c.member_token, c.member_name, 'Sourcing', c.sourcing_days
+      FROM checkins c
+      WHERE c.sourcing_days > 0
+        AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
+
+      UNION ALL
+
+      SELECT c.member_token, c.member_name, 'Converting', c.converting_days
+      FROM checkins c
+      WHERE c.converting_days > 0
+        AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
+
+      UNION ALL
+
+      SELECT c.member_token, c.member_name, 'Execution', c.execution_days
+      FROM checkins c
+      WHERE c.execution_days > 0
+        AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
+
+      UNION ALL
+
+      SELECT c.member_token, c.member_name, 'Portfolio Exits', c.portfolio_exits_days
+      FROM checkins c
+      WHERE c.portfolio_exits_days > 0
+        AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
+
+      UNION ALL
+
+      SELECT c.member_token, c.member_name, 'Portfolio Other', c.portfolio_other_days
+      FROM checkins c
+      WHERE c.portfolio_other_days > 0
+        AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
+    )
+    GROUP BY member_token, category_label
+    ORDER BY member_name, category_label
+  `).all() as TrendRow[];
+}
+
 // ─── Goal scale setting ───────────────────────────────────────────────────────
 
 export type GoalScale = 'rating_5' | 'percent_100';
