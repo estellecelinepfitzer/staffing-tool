@@ -1178,15 +1178,20 @@ export function getYTDTrendByMember(
   return getDb().prepare(`
     SELECT member_token, member_name, category_label, SUM(total_days) AS total_days
     FROM (
-      SELECT c.member_token, c.member_name, cr.category_label, cr.days AS total_days
+      -- New structured data: resolve current label via categories table so renames are reflected
+      SELECT c.member_token, c.member_name, cat.label AS category_label, cr.days AS total_days
       FROM checkin_responses cr
       JOIN checkins c ON c.id = cr.checkin_id
+      JOIN categories cat ON cat.id = cr.category_id
       WHERE cr.days > 0
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
 
       UNION ALL
 
-      SELECT c.member_token, c.member_name, 'Sourcing', c.sourcing_days
+      -- Legacy flat columns (checkins with no checkin_responses rows):
+      -- look up current label by the seeded category id so renames carry over
+      SELECT c.member_token, c.member_name,
+        (SELECT label FROM categories WHERE id = 1) AS category_label, c.sourcing_days
       FROM checkins c
       WHERE c.sourcing_days > 0
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
@@ -1194,7 +1199,8 @@ export function getYTDTrendByMember(
 
       UNION ALL
 
-      SELECT c.member_token, c.member_name, 'Converting', c.converting_days
+      SELECT c.member_token, c.member_name,
+        (SELECT label FROM categories WHERE id = 2), c.converting_days
       FROM checkins c
       WHERE c.converting_days > 0
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
@@ -1202,7 +1208,8 @@ export function getYTDTrendByMember(
 
       UNION ALL
 
-      SELECT c.member_token, c.member_name, 'Execution', c.execution_days
+      SELECT c.member_token, c.member_name,
+        (SELECT label FROM categories WHERE id = 3), c.execution_days
       FROM checkins c
       WHERE c.execution_days > 0
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
@@ -1210,7 +1217,8 @@ export function getYTDTrendByMember(
 
       UNION ALL
 
-      SELECT c.member_token, c.member_name, 'Portfolio Exits', c.portfolio_exits_days
+      SELECT c.member_token, c.member_name,
+        (SELECT label FROM categories WHERE id = 4), c.portfolio_exits_days
       FROM checkins c
       WHERE c.portfolio_exits_days > 0
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
@@ -1218,7 +1226,8 @@ export function getYTDTrendByMember(
 
       UNION ALL
 
-      SELECT c.member_token, c.member_name, 'Portfolio Other', c.portfolio_other_days
+      SELECT c.member_token, c.member_name,
+        (SELECT label FROM categories WHERE id = 5), c.portfolio_other_days
       FROM checkins c
       WHERE c.portfolio_other_days > 0
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
