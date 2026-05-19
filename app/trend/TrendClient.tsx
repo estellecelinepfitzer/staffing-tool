@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getISOWeek } from '@/lib/weeks';
 
 interface Category { id: number; label: string; sort_order: number; }
 interface Member { token: string; name: string; }
@@ -19,16 +20,37 @@ function barColor(label: string): string {
   return CATEGORY_COLORS[label] ?? 'bg-gray-400';
 }
 
+/** Convert a week input string like "2026-W17" → iso_year * 100 + iso_week */
+function weekStrToKey(s: string): number {
+  const [yearStr, wStr] = s.split('-W');
+  return Number(yearStr) * 100 + Number(wStr);
+}
+
+/** Format ISOWeek as a week input value "YYYY-Www" */
+function toWeekInputValue(week: number, year: number): string {
+  return `${year}-W${String(week).padStart(2, '0')}`;
+}
+
 export default function TrendClient() {
+  const now = new Date();
+  const currentWeek = getISOWeek(now);
+  const defaultFrom = toWeekInputValue(1, currentWeek.year);
+  const defaultTo = toWeekInputValue(currentWeek.week, currentWeek.year);
+
+  const [fromStr, setFromStr] = useState(defaultFrom);
+  const [toStr, setToStr] = useState(defaultTo);
   const [data, setData] = useState<TrendData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/trend', { cache: 'no-store' })
+    setLoading(true);
+    const from = weekStrToKey(fromStr);
+    const to = weekStrToKey(toStr);
+    fetch(`/api/trend?from=${from}&to=${to}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((d: TrendData) => setData(d))
       .finally(() => setLoading(false));
-  }, []);
+  }, [fromStr, toStr]);
 
   if (loading || !data) {
     return (
@@ -74,12 +96,29 @@ export default function TrendClient() {
 
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/mtip-logo.png" alt="MTIP" className="h-7 w-auto shrink-0" />
             <h1 className="text-sm font-semibold text-gray-900">Trend</h1>
-            <span className="text-xs text-gray-400">YTD since implementation</span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-400">From</span>
+            <input
+              type="week"
+              value={fromStr}
+              max={toStr}
+              onChange={(e) => e.target.value && setFromStr(e.target.value)}
+              className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+            />
+            <span className="text-xs text-gray-400">to</span>
+            <input
+              type="week"
+              value={toStr}
+              min={fromStr}
+              onChange={(e) => e.target.value && setToStr(e.target.value)}
+              className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
+            />
           </div>
           <a
             href="/dashboard"

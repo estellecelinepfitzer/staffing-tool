@@ -5,7 +5,7 @@ import { getYTDTrendByMember, getCheckinMembers, getActiveCategories } from '@/l
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   const cookieStore = cookies();
 
   const userSession = cookieStore.get(COOKIE_NAME);
@@ -19,7 +19,11 @@ export async function GET() {
     }
   }
 
-  const rows = getYTDTrendByMember();
+  const { searchParams } = new URL(request.url);
+  const fromKey = searchParams.get('from') ? Number(searchParams.get('from')) : undefined;
+  const toKey = searchParams.get('to') ? Number(searchParams.get('to')) : undefined;
+
+  const rows = getYTDTrendByMember(fromKey, toKey);
   const members = getCheckinMembers();
   const categories = getActiveCategories();
 

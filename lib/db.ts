@@ -1169,7 +1169,12 @@ export interface TrendRow {
   total_days: number;
 }
 
-export function getYTDTrendByMember(): TrendRow[] {
+export function getYTDTrendByMember(
+  fromKey?: number, // iso_year * 100 + iso_week, e.g. 202601
+  toKey?: number,
+): TrendRow[] {
+  const from = fromKey ?? 0;
+  const to = toKey ?? 999999;
   return getDb().prepare(`
     SELECT member_token, member_name, category_label, SUM(total_days) AS total_days
     FROM (
@@ -1177,12 +1182,14 @@ export function getYTDTrendByMember(): TrendRow[] {
       FROM checkin_responses cr
       JOIN checkins c ON c.id = cr.checkin_id
       WHERE cr.days > 0
+        AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
 
       UNION ALL
 
       SELECT c.member_token, c.member_name, 'Sourcing', c.sourcing_days
       FROM checkins c
       WHERE c.sourcing_days > 0
+        AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
 
       UNION ALL
@@ -1190,6 +1197,7 @@ export function getYTDTrendByMember(): TrendRow[] {
       SELECT c.member_token, c.member_name, 'Converting', c.converting_days
       FROM checkins c
       WHERE c.converting_days > 0
+        AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
 
       UNION ALL
@@ -1197,6 +1205,7 @@ export function getYTDTrendByMember(): TrendRow[] {
       SELECT c.member_token, c.member_name, 'Execution', c.execution_days
       FROM checkins c
       WHERE c.execution_days > 0
+        AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
 
       UNION ALL
@@ -1204,6 +1213,7 @@ export function getYTDTrendByMember(): TrendRow[] {
       SELECT c.member_token, c.member_name, 'Portfolio Exits', c.portfolio_exits_days
       FROM checkins c
       WHERE c.portfolio_exits_days > 0
+        AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
 
       UNION ALL
@@ -1211,11 +1221,12 @@ export function getYTDTrendByMember(): TrendRow[] {
       SELECT c.member_token, c.member_name, 'Portfolio Other', c.portfolio_other_days
       FROM checkins c
       WHERE c.portfolio_other_days > 0
+        AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
     )
     GROUP BY member_token, category_label
     ORDER BY member_name, category_label
-  `).all() as TrendRow[];
+  `).all({ from, to }) as TrendRow[];
 }
 
 // ─── Goal scale setting ───────────────────────────────────────────────────────
