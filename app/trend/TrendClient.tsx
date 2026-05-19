@@ -20,37 +20,66 @@ function barColor(label: string): string {
   return CATEGORY_COLORS[label] ?? 'bg-gray-400';
 }
 
-/** Convert a week input string like "2026-W17" → iso_year * 100 + iso_week */
-function weekStrToKey(s: string): number {
-  const [yearStr, wStr] = s.split('-W');
-  return Number(yearStr) * 100 + Number(wStr);
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+/** Encode a month as YYYYMM */
+function monthKey(year: number, month: number): number { return year * 100 + month; }
+
+/** Convert YYYYMM → iso_year*100+iso_week for the first day of that month */
+function monthStartKey(ym: number): number {
+  const year = Math.floor(ym / 100);
+  const month = ym % 100;
+  const w = getISOWeek(new Date(year, month - 1, 1));
+  return w.year * 100 + w.week;
 }
 
-/** Format ISOWeek as a week input value "YYYY-Www" */
-function toWeekInputValue(week: number, year: number): string {
-  return `${year}-W${String(week).padStart(2, '0')}`;
+/** Convert YYYYMM → iso_year*100+iso_week for the last day of that month */
+function monthEndKey(ym: number): number {
+  const year = Math.floor(ym / 100);
+  const month = ym % 100;
+  const lastDay = new Date(year, month, 0); // day 0 of next month = last day of this month
+  const w = getISOWeek(lastDay);
+  return w.year * 100 + w.week;
+}
+
+/** Generate all YYYYMM values from startYear/startMonth to now (inclusive) */
+function generateMonthOptions(startYear: number, startMonth: number): number[] {
+  const now = new Date();
+  const endYear = now.getFullYear();
+  const endMonth = now.getMonth() + 1;
+  const options: number[] = [];
+  let y = startYear, m = startMonth;
+  while (y < endYear || (y === endYear && m <= endMonth)) {
+    options.push(monthKey(y, m));
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return options;
 }
 
 export default function TrendClient() {
   const now = new Date();
-  const currentWeek = getISOWeek(now);
-  const defaultFrom = toWeekInputValue(1, currentWeek.year);
-  const defaultTo = toWeekInputValue(currentWeek.week, currentWeek.year);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
-  const [fromStr, setFromStr] = useState(defaultFrom);
-  const [toStr, setToStr] = useState(defaultTo);
+  const monthOptions = generateMonthOptions(2024, 1);
+  const defaultFrom = monthKey(currentYear, 1);
+  const defaultTo = monthKey(currentYear, currentMonth);
+
+  const [fromMonth, setFromMonth] = useState(defaultFrom);
+  const [toMonth, setToMonth] = useState(defaultTo);
   const [data, setData] = useState<TrendData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    const from = weekStrToKey(fromStr);
-    const to = weekStrToKey(toStr);
+    const from = monthStartKey(fromMonth);
+    const to = monthEndKey(toMonth);
     fetch(`/api/trend?from=${from}&to=${to}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((d: TrendData) => setData(d))
       .finally(() => setLoading(false));
-  }, [fromStr, toStr]);
+  }, [fromMonth, toMonth]);
 
   if (loading || !data) {
     return (
@@ -102,23 +131,37 @@ export default function TrendClient() {
             <img src="/mtip-logo.png" alt="MTIP" className="h-7 w-auto shrink-0" />
             <h1 className="text-sm font-semibold text-gray-900">Trend</h1>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">From</span>
-            <input
-              type="week"
-              value={fromStr}
-              max={toStr}
-              onChange={(e) => e.target.value && setFromStr(e.target.value)}
+            <select
+              value={fromMonth}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setFromMonth(v);
+                if (v > toMonth) setToMonth(v);
+              }}
               className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
-            />
+            >
+              {monthOptions.map((ym) => {
+                const y = Math.floor(ym / 100), m = ym % 100;
+                return <option key={ym} value={ym}>{MONTH_NAMES[m - 1]} {y}</option>;
+              })}
+            </select>
             <span className="text-xs text-gray-400">to</span>
-            <input
-              type="week"
-              value={toStr}
-              min={fromStr}
-              onChange={(e) => e.target.value && setToStr(e.target.value)}
+            <select
+              value={toMonth}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                setToMonth(v);
+                if (v < fromMonth) setFromMonth(v);
+              }}
               className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-teal"
-            />
+            >
+              {monthOptions.map((ym) => {
+                const y = Math.floor(ym / 100), m = ym % 100;
+                return <option key={ym} value={ym}>{MONTH_NAMES[m - 1]} {y}</option>;
+              })}
+            </select>
           </div>
           <a
             href="/dashboard"
