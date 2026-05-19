@@ -1183,7 +1183,9 @@ export function getYTDTrendByMember(
       FROM checkin_responses cr
       JOIN checkins c ON c.id = cr.checkin_id
       JOIN categories cat ON cat.id = cr.category_id
+      JOIN team_members tm ON tm.token = c.member_token
       WHERE cr.days > 0
+        AND tm.checkin = 1
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
 
       UNION ALL
@@ -1193,7 +1195,9 @@ export function getYTDTrendByMember(
       SELECT c.member_token, c.member_name,
         (SELECT label FROM categories WHERE id = 1) AS category_label, c.sourcing_days
       FROM checkins c
+      JOIN team_members tm ON tm.token = c.member_token
       WHERE c.sourcing_days > 0
+        AND tm.checkin = 1
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
 
@@ -1202,7 +1206,9 @@ export function getYTDTrendByMember(
       SELECT c.member_token, c.member_name,
         (SELECT label FROM categories WHERE id = 2), c.converting_days
       FROM checkins c
+      JOIN team_members tm ON tm.token = c.member_token
       WHERE c.converting_days > 0
+        AND tm.checkin = 1
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
 
@@ -1211,7 +1217,9 @@ export function getYTDTrendByMember(
       SELECT c.member_token, c.member_name,
         (SELECT label FROM categories WHERE id = 3), c.execution_days
       FROM checkins c
+      JOIN team_members tm ON tm.token = c.member_token
       WHERE c.execution_days > 0
+        AND tm.checkin = 1
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
 
@@ -1220,7 +1228,9 @@ export function getYTDTrendByMember(
       SELECT c.member_token, c.member_name,
         (SELECT label FROM categories WHERE id = 4), c.portfolio_exits_days
       FROM checkins c
+      JOIN team_members tm ON tm.token = c.member_token
       WHERE c.portfolio_exits_days > 0
+        AND tm.checkin = 1
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
 
@@ -1229,7 +1239,9 @@ export function getYTDTrendByMember(
       SELECT c.member_token, c.member_name,
         (SELECT label FROM categories WHERE id = 5), c.portfolio_other_days
       FROM checkins c
+      JOIN team_members tm ON tm.token = c.member_token
       WHERE c.portfolio_other_days > 0
+        AND tm.checkin = 1
         AND (c.iso_year * 100 + c.iso_week) BETWEEN @from AND @to
         AND NOT EXISTS (SELECT 1 FROM checkin_responses cr WHERE cr.checkin_id = c.id)
     )
