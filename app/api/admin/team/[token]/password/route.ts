@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { updateMemberPassword } from '@/lib/db';
-
+import { updateMemberPassword, setUserPasswordHash } from '@/lib/db';
+import { hashUserPassword } from '@/lib/auth';
 
 export async function POST(
   request: NextRequest,
@@ -19,5 +19,6 @@ export async function POST(
   }
 
   updateMemberPassword(token, body.password);
+  setUserPasswordHash(token, hashUserPassword(body.password));
   return NextResponse.json({ ok: true });
 }
