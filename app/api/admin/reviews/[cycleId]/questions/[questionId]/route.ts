@@ -13,10 +13,6 @@ export async function PATCH(
   const cycle = getCycle(cycleId);
   if (!cycle) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  if (cycle.status !== 'draft') {
-    return NextResponse.json({ error: 'Questions can only be edited in draft status' }, { status: 403 });
-  }
-
   const questionId = parseInt(params.questionId, 10);
   if (isNaN(questionId)) return NextResponse.json({ error: 'Invalid questionId' }, { status: 400 });
 
@@ -34,10 +30,6 @@ export async function DELETE(
   const cycleId = parseInt(params.cycleId, 10);
   const cycle = getCycle(cycleId);
   if (!cycle) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-
-  if (cycle.status !== 'draft') {
-    return NextResponse.json({ error: 'Questions can only be edited in draft status' }, { status: 403 });
-  }
 
   const questionId = parseInt(params.questionId, 10);
   if (isNaN(questionId)) return NextResponse.json({ error: 'Invalid questionId' }, { status: 400 });
