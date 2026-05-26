@@ -141,6 +141,47 @@ export async function sendReviewAvailable(
   );
 }
 
+// ─── Monday morning digest ────────────────────────────────────────────────────
+
+export async function sendMondayDigest(
+  to: string,
+  firstName: string,
+  checkinLink: string | null,
+  outstandingForms: { label: string; link: string }[],
+) {
+  const sections: string[] = [];
+
+  if (checkinLink) {
+    sections.push(`
+      <p style="margin:0 0 6px;font-size:14px;font-weight:600;color:#111">Weekly check-in</p>
+      <p style="margin:0 0 8px;font-size:14px;color:#444">Your Monday check-in is waiting — takes 2 minutes.</p>
+      ${btn('Open check-in', checkinLink)}
+    `);
+  }
+
+  if (outstandingForms.length > 0) {
+    const list = outstandingForms
+      .map(
+        (f) =>
+          `<li style="margin-bottom:8px"><a href="${f.link}" style="color:#111;font-weight:500">${f.label}</a></li>`,
+      )
+      .join('');
+    sections.push(`
+      <p style="margin:${checkinLink ? '24px' : '0'} 0 6px;font-size:14px;font-weight:600;color:#111">Outstanding reviews</p>
+      <ul style="padding-left:20px;margin:0">${list}</ul>
+    `);
+  }
+
+  return send(
+    to,
+    'Monday reminder — MTIP',
+    base(`
+      <h1 style="margin:0 0 16px;font-size:20px;font-weight:600">Good morning, ${firstName} 👋</h1>
+      ${sections.join('')}
+    `),
+  );
+}
+
 // ─── Invitation ───────────────────────────────────────────────────────────────
 
 export async function sendInvitation(
