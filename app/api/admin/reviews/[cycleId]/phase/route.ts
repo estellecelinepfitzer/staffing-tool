@@ -19,6 +19,10 @@ import {
 const BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL ?? 'https://staffing.mtip.ch';
 
+const EMAIL_DELAY_MS = 1500; // pause between each send to avoid rate limits
+
+function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
 function firstName(name: string) {
   return name.split(' ')[0];
 }
@@ -66,18 +70,16 @@ export async function POST(
       });
     }
 
-    const results = await Promise.all(
-      activeMembers.map((member) =>
-        sendSelfReviewInvite(
-          member.email,
-          firstName(member.name),
-          cycle.name,
-          cycle.self_due,
-          `${BASE_URL}/review/self?cycle=${cycleId}&token=${member.token}`,
-        ).then((r) => ({ member, r })),
-      ),
-    );
-    for (const { member, r } of results) {
+    for (let i = 0; i < activeMembers.length; i++) {
+      const member = activeMembers[i];
+      if (i > 0) await sleep(EMAIL_DELAY_MS);
+      const r = await sendSelfReviewInvite(
+        member.email,
+        firstName(member.name),
+        cycle.name,
+        cycle.self_due,
+        `${BASE_URL}/review/self?cycle=${cycleId}&token=${member.token}`,
+      );
       if (!r.ok) emailFailures.push(member.name);
     }
   }
@@ -96,31 +98,27 @@ export async function POST(
       byReviewer.set(a.reviewer_token, existing);
     }
 
-    const results = await Promise.all(
-      Array.from(byReviewer.entries()).map(async ([reviewerToken, subjectTokens]) => {
-        const reviewer = getTeamMember(reviewerToken);
-        if (!reviewer) return null;
-
-        const assignments = subjectTokens.map((st) => {
-          const subject = getTeamMember(st);
-          return {
-            subjectName: subject?.name ?? st,
-            link: `${BASE_URL}/review/peer?cycle=${cycleId}&token=${reviewerToken}&subject=${st}`,
-          };
-        });
-
-        const r = await sendPeerReviewInvite(
-          reviewer.email,
-          firstName(reviewer.name),
-          cycle.name,
-          cycle.peer_due,
-          assignments,
-        );
-        return { reviewer, r };
-      }),
-    );
-    for (const result of results) {
-      if (result && !result.r.ok) emailFailures.push(result.reviewer.name);
+    const reviewerEntries = Array.from(byReviewer.entries());
+    for (let i = 0; i < reviewerEntries.length; i++) {
+      const [reviewerToken, subjectTokens] = reviewerEntries[i];
+      const reviewer = getTeamMember(reviewerToken);
+      if (!reviewer) continue;
+      if (i > 0) await sleep(EMAIL_DELAY_MS);
+      const assignments = subjectTokens.map((st) => {
+        const subject = getTeamMember(st);
+        return {
+          subjectName: subject?.name ?? st,
+          link: `${BASE_URL}/review/peer?cycle=${cycleId}&token=${reviewerToken}&subject=${st}`,
+        };
+      });
+      const r = await sendPeerReviewInvite(
+        reviewer.email,
+        firstName(reviewer.name),
+        cycle.name,
+        cycle.peer_due,
+        assignments,
+      );
+      if (!r.ok) emailFailures.push(reviewer.name);
     }
   }
 
@@ -146,31 +144,27 @@ export async function POST(
       }
     }
 
-    const results = await Promise.all(
-      Array.from(managerMap.entries()).map(async ([managerToken, reportTokens]) => {
-        const manager = getTeamMember(managerToken);
-        if (!manager) return null;
-
-        const directReports = reportTokens.map((rt) => {
-          const report = getTeamMember(rt);
-          return {
-            name: report?.name ?? rt,
-            link: `${BASE_URL}/review/manager?cycle=${cycleId}&token=${managerToken}&subject=${rt}`,
-          };
-        });
-
-        const r = await sendManagerReviewInvite(
-          manager.email,
-          firstName(manager.name),
-          cycle.name,
-          cycle.manager_due,
-          directReports,
-        );
-        return { manager, r };
-      }),
-    );
-    for (const result of results) {
-      if (result && !result.r.ok) emailFailures.push(result.manager.name);
+    const managerEntries = Array.from(managerMap.entries());
+    for (let i = 0; i < managerEntries.length; i++) {
+      const [managerToken, reportTokens] = managerEntries[i];
+      const manager = getTeamMember(managerToken);
+      if (!manager) continue;
+      if (i > 0) await sleep(EMAIL_DELAY_MS);
+      const directReports = reportTokens.map((rt) => {
+        const report = getTeamMember(rt);
+        return {
+          name: report?.name ?? rt,
+          link: `${BASE_URL}/review/manager?cycle=${cycleId}&token=${managerToken}&subject=${rt}`,
+        };
+      });
+      const r = await sendManagerReviewInvite(
+        manager.email,
+        firstName(manager.name),
+        cycle.name,
+        cycle.manager_due,
+        directReports,
+      );
+      if (!r.ok) emailFailures.push(manager.name);
     }
   }
 
