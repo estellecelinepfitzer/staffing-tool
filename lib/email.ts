@@ -6,15 +6,23 @@ const FROM = 'MTIP Reviews <noreply@reviews.mtip.ch>';
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
-async function send(to: string, subject: string, html: string) {
+async function send(to: string, subject: string, html: string): Promise<{ ok: boolean; error?: string }> {
+  if (!to || !to.includes('@')) {
+    const msg = `skipped — no valid email address`;
+    console.warn('[email]', msg, { to });
+    return { ok: false, error: msg };
+  }
   if (!process.env.RESEND_API_KEY) {
     console.warn('[email] RESEND_API_KEY not set — skipping send to', to);
-    return;
+    return { ok: false, error: 'RESEND_API_KEY not configured' };
   }
   try {
     await resend.emails.send({ from: FROM, to, subject, html });
+    return { ok: true };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error('[email] Failed to send to', to, err);
+    return { ok: false, error: msg };
   }
 }
 
@@ -43,7 +51,7 @@ export async function sendSelfReviewInvite(
   link: string,
 ) {
   const due = dueDate ? ` Due: <strong>${dueDate}</strong>.` : '';
-  await send(
+  return send(
     to,
     `Your self-review is ready — ${cycleName}`,
     base(`
@@ -72,7 +80,7 @@ export async function sendPeerReviewInvite(
     )
     .join('');
 
-  await send(
+  return send(
     to,
     `Peer reviews to complete — ${cycleName}`,
     base(`
@@ -101,7 +109,7 @@ export async function sendManagerReviewInvite(
     )
     .join('');
 
-  await send(
+  return send(
     to,
     `Manager reviews ready — ${cycleName}`,
     base(`

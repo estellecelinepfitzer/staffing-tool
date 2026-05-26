@@ -178,9 +178,10 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
       });
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(d.error ?? 'Failed to update phase');
+      const d = await res.json().catch(() => ({})) as { error?: string; emailFailures?: string[] };
+      if (!res.ok) throw new Error(d.error ?? 'Failed to update phase');
+      if (d.emailFailures && d.emailFailures.length > 0) {
+        setError(`Phase updated, but emails failed to send for: ${d.emailFailures.join(', ')}. Use the Remind button to retry.`);
       }
       setCycle((c) => ({ ...c, status }));
       if (status === 'closed') {

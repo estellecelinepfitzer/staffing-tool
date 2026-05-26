@@ -43,7 +43,7 @@ export async function POST(
   const allAssignments = getCycleAssignments(cycleId);
   const outstanding: { label: string; link: string }[] = [];
 
-  // Self review outstanding?
+  // Self review outstanding — include regardless of current phase if still pending
   const selfA = allAssignments.find(
     (a) =>
       a.type === 'self' &&
@@ -51,7 +51,7 @@ export async function POST(
       a.status === 'pending' &&
       a.removed === 0,
   );
-  if (selfA && cycle.status === 'self_review_open') {
+  if (selfA) {
     outstanding.push({
       label: 'Self-review',
       link: `${BASE_URL}/review/self?cycle=${cycleId}&token=${body.token}`,

@@ -53,6 +53,8 @@ export async function POST(
 
   const activeMembers = getActiveTeamMembers();
 
+  const emailFailures: string[] = [];
+
   // ── self_review_open: create self-assignments + send invites ──
   if (status === 'self_review_open') {
     for (const member of activeMembers) {
@@ -64,7 +66,7 @@ export async function POST(
       });
     }
 
-    await Promise.all(
+    const results = await Promise.all(
       activeMembers.map((member) =>
         sendSelfReviewInvite(
           member.email,
@@ -72,20 +74,21 @@ export async function POST(
           cycle.name,
           cycle.self_due,
           `${BASE_URL}/review/self?cycle=${cycleId}&token=${member.token}`,
-        ),
+        ).then((r) => ({ member, r })),
       ),
     );
+    for (const { member, r } of results) {
+      if (!r.ok) emailFailures.push(member.name);
+    }
   }
 
   // ── peer_review_open: send peer review invites ──
   if (status === 'peer_review_open') {
-    // Group peer assignments by reviewer
     const allAssignments = getCycleAssignments(cycleId);
     const peerAssignments = allAssignments.filter(
       (a) => a.type === 'peer' && a.removed === 0,
     );
 
-    // Build map: reviewer_token -> [subject_token, ...]
     const byReviewer: Map<string, string[]> = new Map();
     for (const a of peerAssignments) {
       const existing = byReviewer.get(a.reviewer_token) ?? [];
@@ -93,10 +96,10 @@ export async function POST(
       byReviewer.set(a.reviewer_token, existing);
     }
 
-    await Promise.all(
+    const results = await Promise.all(
       Array.from(byReviewer.entries()).map(async ([reviewerToken, subjectTokens]) => {
         const reviewer = getTeamMember(reviewerToken);
-        if (!reviewer) return;
+        if (!reviewer) return null;
 
         const assignments = subjectTokens.map((st) => {
           const subject = getTeamMember(st);
@@ -106,30 +109,32 @@ export async function POST(
           };
         });
 
-        await sendPeerReviewInvite(
+        const r = await sendPeerReviewInvite(
           reviewer.email,
           firstName(reviewer.name),
           cycle.name,
           cycle.peer_due,
           assignments,
         );
+        return { reviewer, r };
       }),
     );
+    for (const result of results) {
+      if (result && !result.r.ok) emailFailures.push(result.reviewer.name);
+    }
   }
 
   // ── manager_review_open: create manager assignments + send invites ──
   if (status === 'manager_review_open') {
-    // Build manager -> direct reports map
     const managerMap: Map<string, string[]> = new Map();
     for (const member of activeMembers) {
       const mgr = member.manager_token;
-      if (!mgr || mgr === member.token) continue; // skip self-managed
+      if (!mgr || mgr === member.token) continue;
       const existing = managerMap.get(mgr) ?? [];
       existing.push(member.token);
       managerMap.set(mgr, existing);
     }
 
-    // Create manager assignments
     for (const [managerToken, reportTokens] of Array.from(managerMap.entries())) {
       for (const subjectToken of reportTokens) {
         createAssignment({
@@ -141,11 +146,10 @@ export async function POST(
       }
     }
 
-    // Send emails
-    await Promise.all(
+    const results = await Promise.all(
       Array.from(managerMap.entries()).map(async ([managerToken, reportTokens]) => {
         const manager = getTeamMember(managerToken);
-        if (!manager) return;
+        if (!manager) return null;
 
         const directReports = reportTokens.map((rt) => {
           const report = getTeamMember(rt);
@@ -155,19 +159,26 @@ export async function POST(
           };
         });
 
-        await sendManagerReviewInvite(
+        const r = await sendManagerReviewInvite(
           manager.email,
           firstName(manager.name),
           cycle.name,
           cycle.manager_due,
           directReports,
         );
+        return { manager, r };
       }),
     );
+    for (const result of results) {
+      if (result && !result.r.ok) emailFailures.push(result.manager.name);
+    }
   }
 
   // Update status
   updateCycleStatus(cycleId, status);
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    emailFailures: emailFailures.length > 0 ? emailFailures : undefined,
+  });
 }
