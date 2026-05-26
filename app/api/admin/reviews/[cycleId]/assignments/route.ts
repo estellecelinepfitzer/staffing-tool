@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdminRequest } from '@/lib/adminAuth';
-import { createAssignment, removeAssignment, getAssignment } from '@/lib/db';
+import { createAssignment, removeAssignment, getAssignment, getCycle, getTeamMember } from '@/lib/db';
+import { sendPeerReviewInvite } from '@/lib/email';
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://staffing.mtip.ch';
 
 export async function POST(
   request: NextRequest,
@@ -30,6 +32,23 @@ export async function POST(
   });
 
   const assignment = getAssignment(id);
+
+  // If the cycle is already in peer or manager review phase, email the new reviewer immediately
+  const cycle = getCycle(cycleId);
+  if (cycle && (cycle.status === 'peer_review_open' || cycle.status === 'manager_review_open')) {
+    const reviewer = getTeamMember(body.reviewer_token);
+    const subject = getTeamMember(body.subject_token);
+    if (reviewer && subject) {
+      await sendPeerReviewInvite(
+        reviewer.email,
+        reviewer.name.split(' ')[0],
+        cycle.name,
+        cycle.peer_due,
+        [{ subjectName: subject.name, link: `${BASE_URL}/review/peer?cycle=${cycleId}&token=${body.reviewer_token}&subject=${body.subject_token}` }],
+      );
+    }
+  }
+
   return NextResponse.json({ ok: true, assignment });
 }
 

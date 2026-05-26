@@ -216,6 +216,7 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
   // ─── Derived data ───────────────────────────────────────────────────────────
 
   const isDraft = cycle.status === 'draft';
+  const canEditPeers = cycle.status !== 'closed';
   const next = nextStatus(cycle.status);
   const prev = prevStatus(cycle.status);
 
@@ -420,7 +421,7 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
                               {submitted ? '✓' : '—'}
                             </span>
                           )}
-                          {isDraft && (
+                          {canEditPeers && !submitted && (
                             <button
                               onClick={() => handleRemovePeer(a.id)}
                               className="ml-1 text-gray-400 hover:text-red-500 transition-colors leading-none"
@@ -438,7 +439,7 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
                     )}
                   </div>
 
-                  {isDraft && (
+                  {canEditPeers && (
                     <div>
                       {isAddingHere ? (
                         <div className="flex items-center gap-2">
