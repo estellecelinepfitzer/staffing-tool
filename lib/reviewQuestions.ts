@@ -111,12 +111,6 @@ export const PEER_REVIEW_QUESTIONS: Question[] = [
     required: true,
   },
   {
-    key: 'collaboration_example',
-    text: 'How has this person demonstrated collaboration and teamwork? Share a specific example.',
-    type: 'text',
-    required: true,
-  },
-  {
     key: 'rating_collaboration',
     text: 'On a scale of 1–5, how well does this person collaborate with others?',
     type: 'rating',
