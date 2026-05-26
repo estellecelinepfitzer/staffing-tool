@@ -163,9 +163,6 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
         </>
       )}
 
-      {isLocked && (
-        <p className="text-xs text-gray-400 italic">Questions can only be edited in draft status.</p>
-      )}
     </div>
   );
 }

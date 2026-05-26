@@ -493,7 +493,7 @@ export default function CycleClient({ cycle: initialCycle, members, assignments:
             selfQuestions={selfQuestions}
             peerQuestions={peerQuestions}
             managerQuestions={managerQuestions}
-            isLocked={!isDraft}
+            isLocked={false}
           />
         </Section>
 
