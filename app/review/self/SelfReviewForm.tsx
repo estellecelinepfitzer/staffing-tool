@@ -62,6 +62,7 @@ export default function SelfReviewForm({
 
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [savingProgress, setSavingProgress] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   async function saveField(key: string, value: string | number) {
@@ -119,6 +120,24 @@ export default function SelfReviewForm({
 
   async function handleGoalCommentBlur(goalId: number) {
     await saveGoal(goalId, goalStates[goalId]);
+  }
+
+  async function handleSaveProgress() {
+    setSavingProgress(true);
+    try {
+      const allKeys = questions.map((q) => q.question_key);
+      const commentKeys = questions.filter((q) => q.question_type === 'rating').map((q) => `${q.question_key}_comment`);
+      await Promise.all([
+        ...allKeys.map((key) => saveField(key, answers[key] ?? '')),
+        ...commentKeys.map((key) => saveField(key, answers[key] ?? '')),
+        ...goals.map((g) => saveGoal(g.id, goalStates[g.id])),
+      ]);
+      window.location.href = `/my-reviews?token=${token}`;
+    } catch {
+      // silent failure
+    } finally {
+      setSavingProgress(false);
+    }
   }
 
   async function handleSubmit() {
@@ -393,10 +412,17 @@ export default function SelfReviewForm({
               )}
               <button
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || savingProgress}
                 className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? 'Submitting…' : 'Submit self-review'}
+              </button>
+              <button
+                onClick={handleSaveProgress}
+                disabled={submitting || savingProgress}
+                className="w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {savingProgress ? 'Saving…' : 'Save progress & return to profile'}
               </button>
             </div>
           )}
