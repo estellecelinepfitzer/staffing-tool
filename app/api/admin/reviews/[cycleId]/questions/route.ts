@@ -27,10 +27,6 @@ export async function POST(
   const cycle = getCycle(cycleId);
   if (!cycle) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  if (cycle.status !== 'draft') {
-    return NextResponse.json({ error: 'Questions can only be edited in draft status' }, { status: 403 });
-  }
-
   const body = await request.json() as {
     review_type: string;
     question_text: string;

@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { getPeerReviewHeadline, RATING_LABELS } from '@/lib/reviewQuestions';
 import type { CycleQuestion } from '@/lib/db';
 
-const CANNOT_ASSESS = 'cannot_assess';
-
 interface Props {
   cycleId: number;
   token: string;
@@ -35,8 +33,7 @@ export default function PeerReviewForm({
     const init: Record<string, string | number> = {};
     for (const q of questions) {
       if (q.question_type === 'rating' && existingResponses[q.question_key] !== undefined) {
-        const raw = existingResponses[q.question_key];
-        init[q.question_key] = raw === CANNOT_ASSESS ? CANNOT_ASSESS : Number(raw);
+        init[q.question_key] = Number(existingResponses[q.question_key]);
       } else {
         init[q.question_key] = existingResponses[q.question_key] ?? '';
       }
@@ -47,6 +44,7 @@ export default function PeerReviewForm({
   });
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingProgress, setSavingProgress] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   async function saveField(key: string, value: string | number) {
@@ -80,13 +78,8 @@ export default function PeerReviewForm({
     await saveField(key, value);
   }
 
-  async function handleCannotAssess(key: string) {
-    setAnswers((prev) => ({ ...prev, [key]: CANNOT_ASSESS }));
-    await saveField(key, CANNOT_ASSESS);
-  }
-
   async function handleSaveProgress() {
-    setSaving(true);
+    setSavingProgress(true);
     try {
       await Promise.all([
         ...questions.map((q) => saveField(q.question_key, answers[q.question_key] ?? '')),
@@ -98,7 +91,7 @@ export default function PeerReviewForm({
     } catch {
       // silent failure
     } finally {
-      setSaving(false);
+      setSavingProgress(false);
     }
   }
 
@@ -106,13 +99,10 @@ export default function PeerReviewForm({
     const missingItems: string[] = [];
 
     for (const q of questions) {
-      const val = answers[q.question_key];
-      const isCannotAssess = val === CANNOT_ASSESS;
-
-      if (!isCannotAssess && (val === '' || val === undefined || val === 0)) {
+      if (answers[q.question_key] === '' || answers[q.question_key] === undefined || answers[q.question_key] === 0) {
         missingItems.push(q.question_text);
       }
-      if (q.question_type === 'rating' && !isCannotAssess) {
+      if (q.question_type === 'rating') {
         const commentKey = `${q.question_key}_comment`;
         if (!String(answers[commentKey] ?? '').trim()) {
           missingItems.push(`${q.question_text} — comment`);
@@ -208,7 +198,7 @@ export default function PeerReviewForm({
               {q.question_type === 'rating' ? (
                 isEditable ? (
                   <div>
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+                    <div className="flex gap-5">
                       {[1, 2, 3, 4, 5].map((n) => (
                         <label key={n} className="flex flex-col items-center gap-1 cursor-pointer">
                           <input
@@ -222,47 +212,25 @@ export default function PeerReviewForm({
                           <span className="text-xs text-gray-500">{n}</span>
                         </label>
                       ))}
-                      <button
-                        type="button"
-                        onClick={() => handleCannotAssess(q.question_key)}
-                        className={`ml-1 text-xs px-2.5 py-1 rounded-lg border transition-colors ${
-                          answers[q.question_key] === CANNOT_ASSESS
-                            ? 'bg-gray-100 border-gray-400 text-gray-700 font-medium'
-                            : 'border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600'
-                        }`}
-                      >
-                        Cannot assess
-                      </button>
                     </div>
-
-                    {answers[q.question_key] !== '' && answers[q.question_key] !== undefined && answers[q.question_key] !== CANNOT_ASSESS && (
+                    {answers[q.question_key] !== '' && answers[q.question_key] !== undefined && (
                       <p className="text-xs text-gray-500 mt-1.5">{RATING_LABELS[answers[q.question_key] as number]}</p>
                     )}
-                    {answers[q.question_key] === CANNOT_ASSESS && (
-                      <p className="text-xs text-gray-400 mt-1.5 italic">Not enough context to assess this competency.</p>
-                    )}
-
-                    {answers[q.question_key] !== CANNOT_ASSESS && (
-                      <textarea
-                        rows={2}
-                        className="mt-3 block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
-                        placeholder="Add a comment…"
-                        value={String(answers[`${q.question_key}_comment`] ?? '')}
-                        onChange={(e) => handleTextChange(`${q.question_key}_comment`, e.target.value)}
-                        onBlur={() => handleTextBlur(`${q.question_key}_comment`)}
-                      />
-                    )}
+                    <textarea
+                      rows={2}
+                      className="mt-3 block w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent placeholder-gray-400"
+                      placeholder="Add a comment…"
+                      value={String(answers[`${q.question_key}_comment`] ?? '')}
+                      onChange={(e) => handleTextChange(`${q.question_key}_comment`, e.target.value)}
+                      onBlur={() => handleTextBlur(`${q.question_key}_comment`)}
+                    />
                   </div>
                 ) : (
                   <div className="space-y-1">
                     <div className="text-sm text-gray-700">
-                      {answers[q.question_key] === CANNOT_ASSESS ? (
-                        <span className="text-gray-400 italic">Cannot assess</span>
-                      ) : answers[q.question_key] ? (
-                        RATING_LABELS[answers[q.question_key] as number] ?? String(answers[q.question_key])
-                      ) : (
-                        <span className="text-gray-400">No response</span>
-                      )}
+                      {answers[q.question_key]
+                        ? RATING_LABELS[answers[q.question_key] as number] ?? String(answers[q.question_key])
+                        : <span className="text-gray-400">No response</span>}
                     </div>
                     {answers[`${q.question_key}_comment`] && (
                       <p className="text-sm text-gray-600 whitespace-pre-wrap">{answers[`${q.question_key}_comment`]}</p>
@@ -300,17 +268,17 @@ export default function PeerReviewForm({
               )}
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || savingProgress}
                 className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {saving ? 'Saving…' : 'Submit peer review'}
               </button>
               <button
                 onClick={handleSaveProgress}
-                disabled={saving}
+                disabled={saving || savingProgress}
                 className="w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                Save progress & return to profile
+                {savingProgress ? 'Saving…' : 'Save progress & return to profile'}
               </button>
             </div>
           )}
