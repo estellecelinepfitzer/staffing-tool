@@ -18,6 +18,23 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
   const [newType, setNewType] = useState<'text' | 'rating'>('text');
   const [savingNew, setSavingNew] = useState(false);
 
+  async function handleMove(index: number, direction: 'up' | 'down') {
+    const swapIndex = direction === 'up' ? index - 1 : index + 1;
+    if (swapIndex < 0 || swapIndex >= questions.length) return;
+    const next = [...questions];
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+    setQuestions(next);
+    try {
+      await fetch(`/api/admin/reviews/${cycleId}/questions/reorder`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: next.map((q, i) => ({ id: q.id, sort_order: i })) }),
+      });
+    } catch {
+      setError('Failed to save order');
+    }
+  }
+
   async function handleUpdateQuestion(id: number, question_text: string) {
     try {
       await fetch(`/api/admin/reviews/${cycleId}/questions/${id}`, {
@@ -91,9 +108,13 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
             key={q.id}
             question={q}
             index={idx + 1}
+            isFirst={idx === 0}
+            isLast={idx === questions.length - 1}
             isLocked={isLocked}
             onSave={(text) => handleUpdateQuestion(q.id, text)}
             onDelete={() => handleDeleteQuestion(q.id)}
+            onMoveUp={() => handleMove(idx, 'up')}
+            onMoveDown={() => handleMove(idx, 'down')}
           />
         ))}
       </div>
@@ -170,15 +191,23 @@ export default function QuestionsPanel({ cycleId, reviewType, initialQuestions, 
 function QuestionRow({
   question,
   index,
+  isFirst,
+  isLast,
   isLocked,
   onSave,
   onDelete,
+  onMoveUp,
+  onMoveDown,
 }: {
   question: CycleQuestion;
   index: number;
+  isFirst: boolean;
+  isLast: boolean;
   isLocked: boolean;
   onSave: (text: string) => void;
   onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
 }) {
   const [text, setText] = useState(question.question_text);
   const savedRef = useRef(question.question_text);
@@ -192,7 +221,32 @@ function QuestionRow({
 
   return (
     <div className="flex gap-2 items-start">
+      {/* Up / down arrows */}
+      <div className="flex flex-col mt-1.5 shrink-0">
+        <button
+          onClick={onMoveUp}
+          disabled={isFirst}
+          className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-0 disabled:cursor-default transition-colors"
+          title="Move up"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+        <button
+          onClick={onMoveDown}
+          disabled={isLast}
+          className="p-0.5 text-gray-300 hover:text-gray-500 disabled:opacity-0 disabled:cursor-default transition-colors"
+          title="Move down"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
+
       <span className="text-xs text-gray-400 mt-2.5 w-5 shrink-0 text-right">{index}.</span>
+
       <div className="flex-1 flex gap-2 items-start">
         {isLocked ? (
           <div className="flex-1 text-sm text-gray-700 py-2 px-3 bg-gray-50 rounded-lg border border-gray-100">

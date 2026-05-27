@@ -961,6 +961,12 @@ export function createQuestion(data: Omit<CycleQuestion, 'id'>): number {
   return result.lastInsertRowid as number;
 }
 
+export function reorderQuestions(updates: { id: number; sort_order: number }[]): void {
+  const stmt = getDb().prepare('UPDATE cycle_questions SET sort_order = ? WHERE id = ?');
+  const tx = getDb().transaction(() => { for (const u of updates) stmt.run(u.sort_order, u.id); });
+  tx();
+}
+
 export function updateQuestion(id: number, data: { question_text?: string; placeholder?: string | null; required?: number }): void {
   const fields: string[] = [];
   const values: unknown[] = [];
