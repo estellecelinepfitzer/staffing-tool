@@ -315,8 +315,8 @@ export default function CheckinForm({ member, existing, isoWeek, isoYear, today,
                 onChange={(e) => handleWorkingDaysChange(Number(e.target.value))}
                 className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:border-transparent"
               >
-                {[0, 1, 2, 3, 4, 5].map((d) => (
-                  <option key={d} value={d}>{d} {d === 1 ? 'day' : 'days'}</option>
+                {[0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((d) => (
+                  <option key={d} value={d}>{d === 0.5 ? '½ day' : d === 1 ? '1 day' : d % 1 === 0.5 ? `${Math.floor(d)}½ days` : `${d} days`}</option>
                 ))}
               </select>
               <span className="text-xs text-gray-400">0 = holiday / fully out</span>

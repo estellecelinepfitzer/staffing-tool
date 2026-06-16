@@ -86,6 +86,7 @@ export default function ManagerReviewForm({
   );
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [savingProgress, setSavingProgress] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [released, setReleased] = useState(isReleasedProp);
   const [releasing, setReleasing] = useState(false);
@@ -184,6 +185,18 @@ export default function ManagerReviewForm({
   async function handleRatingChange(key: string, value: number) {
     setAnswers((prev) => ({ ...prev, [key]: value }));
     await saveField(key, value);
+  }
+
+  async function handleSaveProgress() {
+    setSavingProgress(true);
+    try {
+      await saveAllFields();
+      window.location.href = `/my-reviews?token=${managerToken}`;
+    } catch {
+      // silent failure
+    } finally {
+      setSavingProgress(false);
+    }
   }
 
   async function handleSave() {
@@ -564,7 +577,7 @@ export default function ManagerReviewForm({
             <div className="pt-2 pb-4 space-y-3">
               <button
                 onClick={handleSave}
-                disabled={saveStatus === 'saving'}
+                disabled={saveStatus === 'saving' || savingProgress}
                 className="w-full bg-brand-blue text-white rounded-xl py-3 text-sm font-medium hover:bg-[#006BB0] active:bg-[#005A96] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 {saveStatus === 'saving' ? 'Saving…' : 'Save'}
@@ -572,6 +585,13 @@ export default function ManagerReviewForm({
               {saveStatus === 'saved' && (
                 <p className="text-center text-sm text-green-600">Saved</p>
               )}
+              <button
+                onClick={handleSaveProgress}
+                disabled={saveStatus === 'saving' || savingProgress}
+                className="w-full rounded-xl border border-gray-200 bg-white py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {savingProgress ? 'Saving…' : 'Save progress & return to profile'}
+              </button>
 
               {!releaseConfirmStep ? (
                 <button
