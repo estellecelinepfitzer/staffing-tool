@@ -1,0 +1,17 @@
+name: Monday morning digest
+
+on:
+  schedule:
+    # 7:00 UTC = 8:00 CET (winter) / 9:00 CEST (summer)
+    - cron: '0 7 * * 1'
+  workflow_dispatch: # allow manual trigger for testing
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Monday digest
+        run: |
+          curl -sf -X POST https://staffing.mtip.ch/api/cron/monday-reminder \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"
