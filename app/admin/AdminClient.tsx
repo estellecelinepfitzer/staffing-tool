@@ -10,6 +10,7 @@ interface Props {
   members: TeamMemberRow[];
   cycles: ReviewCycle[];
   categories: Category[];
+  mondayDigestEnabled: boolean;
 }
 
 function slugify(name: string): string {
@@ -20,9 +21,23 @@ function slugify(name: string): string {
     .slice(0, 20);
 }
 
-export default function AdminClient({ members: initialMembers, cycles, categories: initialCategories }: Props) {
+export default function AdminClient({ members: initialMembers, cycles, categories: initialCategories, mondayDigestEnabled: initialMondayDigest }: Props) {
   const [members, setMembers] = useState<TeamMemberRow[]>(initialMembers);
   const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [mondayDigestEnabled, setMondayDigestEnabled] = useState(initialMondayDigest);
+
+  async function handleMondayDigestToggle(enabled: boolean) {
+    setMondayDigestEnabled(enabled);
+    try {
+      await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ monday_digest_enabled: enabled }),
+      });
+    } catch {
+      setMondayDigestEnabled(!enabled);
+    }
+  }
   const [showCategoryPanel, setShowCategoryPanel] = useState(false);
   const [newCategoryLabel, setNewCategoryLabel] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
@@ -652,6 +667,27 @@ export default function AdminClient({ members: initialMembers, cycles, categorie
             + Add team member
           </button>
         )}
+
+      {/* ── Settings ── */}
+      <div className="mt-10">
+        <h2 className="text-base font-semibold text-gray-900 mb-3">Settings</h2>
+        <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+          <div className="flex items-center justify-between px-5 py-4 gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-800">Monday morning digest</p>
+              <p className="text-xs text-gray-400 mt-0.5">Sends a weekly reminder email every Monday at 8am CET to members with outstanding check-ins or reviews.</p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={mondayDigestEnabled}
+              onClick={() => handleMondayDigestToggle(!mondayDigestEnabled)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-teal focus:ring-offset-2 ${mondayDigestEnabled ? 'bg-brand-teal' : 'bg-gray-200'}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${mondayDigestEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+        </div>
+      </div>
 
       </div>
     </div>

@@ -6,6 +6,7 @@ import {
   getCheckinMembers,
   getCheckin,
   getTeamMember,
+  getSetting,
 } from '@/lib/db';
 import { sendMondayDigest } from '@/lib/email';
 import { getISOWeek } from '@/lib/weeks';
@@ -22,6 +23,10 @@ export async function POST(request: NextRequest) {
   const auth = request.headers.get('authorization');
   if (CRON_SECRET && auth !== `Bearer ${CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  if (getSetting('monday_digest_enabled') === 'false') {
+    return NextResponse.json({ ok: true, skipped: true, reason: 'Monday digest is disabled' });
   }
 
   const { week, year } = getISOWeek(new Date());
