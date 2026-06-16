@@ -12,6 +12,7 @@ jobs:
     steps:
       - name: Send Monday digest
         run: |
-          curl -sf -X POST https://staffing.mtip.ch/api/cron/monday-reminder \
+          curl -s -X POST https://staffing.mtip.ch/api/cron/monday-reminder \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            -H "Content-Type: application/json"
+            -H "Content-Type: application/json" \
+            | tee /dev/stderr | python3 -m json.tool || true
